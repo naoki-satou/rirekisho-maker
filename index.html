@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>履歴書メーカー / Japanese Resume Maker</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+    background: #f2f4f7; color: #222; -webkit-text-size-adjust: 100%;
+  }
+  .app { max-width: 760px; margin: 0 auto; padding: 12px 12px 60px; }
+  header.top {
+    background: #1f4e79; color: #fff; border-radius: 12px; padding: 16px;
+    margin-bottom: 14px;
+  }
+  header.top h1 { font-size: 20px; margin: 0 0 6px; }
+  header.top p { font-size: 13px; margin: 0; line-height: 1.6; opacity: .95; }
+  .langbar { display: flex; gap: 8px; margin-top: 12px; }
+  .langbar button {
+    flex: 1; padding: 10px 4px; font-size: 15px; border-radius: 8px; border: 2px solid #fff;
+    background: transparent; color: #fff; cursor: pointer;
+  }
+  .langbar button.active { background: #fff; color: #1f4e79; font-weight: bold; }
+  section.card {
+    background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  section.card h2 {
+    font-size: 16px; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 2px solid #1f4e79; color: #1f4e79;
+  }
+  label.field { display: block; margin-bottom: 12px; }
+  label.field > span { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+  label.field > small { display: block; font-size: 12px; color: #666; margin-top: 3px; }
+  input[type="text"], input[type="tel"], input[type="email"], input[type="date"], input[type="number"],
+  select, textarea {
+    width: 100%; padding: 10px; font-size: 16px; border: 1px solid #bbb; border-radius: 8px;
+    background: #fff; font-family: inherit;
+  }
+  textarea { min-height: 110px; line-height: 1.7; resize: vertical; }
+  .row2 { display: flex; gap: 10px; }
+  .row2 > * { flex: 1; }
+  .photoBox { display: flex; gap: 12px; align-items: flex-start; }
+  .photoPrev {
+    width: 90px; height: 120px; border: 1px dashed #999; border-radius: 6px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;
+    background: #fafafa; text-align: center; flex: none;
+  }
+  .photoPrev img { width: 100%; height: 100%; object-fit: cover; }
+  .btn {
+    display: inline-block; padding: 10px 16px; font-size: 15px; border-radius: 8px; border: none;
+    background: #1f4e79; color: #fff; cursor: pointer; font-family: inherit;
+  }
+  .btn.sub { background: #e8edf3; color: #1f4e79; }
+  .btn.danger { background: #b3261e; }
+  .btn.big { width: 100%; padding: 14px; font-size: 17px; font-weight: bold; }
+  .dynrow { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .dynrow .y { width: 84px; flex: none; }
+  .dynrow .m { width: 64px; flex: none; }
+  .dynrow .t { flex: 1; }
+  .dynrow .del {
+    flex: none; width: 40px; height: 42px; border-radius: 8px; border: 1px solid #ccc;
+    background: #f6f6f6; font-size: 16px; cursor: pointer; color: #b3261e;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chips button {
+    padding: 8px 12px; font-size: 14px; border-radius: 999px; border: 1px solid #1f4e79;
+    background: #fff; color: #1f4e79; cursor: pointer; font-family: inherit;
+  }
+  .chips button.active { background: #1f4e79; color: #fff; }
+  .tpl {
+    border: 1px solid #d5dce4; border-radius: 8px; padding: 10px; margin-bottom: 8px; background: #fbfcfe;
+  }
+  .tpl .gist { font-size: 12px; color: #1f4e79; font-weight: bold; margin-bottom: 4px; }
+  .tpl .body { font-size: 13px; line-height: 1.7; white-space: pre-wrap; margin-bottom: 8px; }
+  .tpl .btn { padding: 7px 12px; font-size: 13px; }
+  .note { font-size: 12px; color: #666; line-height: 1.6; }
+  .savedmsg { font-size: 12px; color: #2e7d32; min-height: 16px; }
+  .checkline { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 6px 0 10px; }
+  .checkline input { width: 20px; height: 20px; }
+
+  /* ===== Resume sheet (print + preview) ===== */
+  .sheetWrap { overflow-x: auto; background: #888; padding: 10px; border-radius: 8px; }
+  .sheet {
+    width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; padding: 10mm 11mm;
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "MS Mincho", serif; color: #000;
+    font-size: 11pt; line-height: 1.5;
+  }
+  .sheet table { border-collapse: collapse; width: 100%; }
+  .sheet td, .sheet th { border: 1px solid #000; padding: 3px 6px; vertical-align: middle; }
+  .sheet .ttl { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
+  .sheet .ttl .t1 { font-size: 20pt; letter-spacing: .6em; font-weight: bold; }
+  .sheet .ttl .t2 { font-size: 10pt; }
+  .sheet .lbl { font-size: 8pt; color: #000; }
+  .sheet .nameBig { font-size: 16pt; letter-spacing: .15em; }
+  .sheet .photoCell { width: 30mm; text-align: center; }
+  .sheet .photoCell img { width: 30mm; height: 40mm; object-fit: cover; display: block; margin: 0 auto; }
+  .sheet .photoEmpty {
+    width: 30mm; height: 40mm; border: 1px dotted #666; margin: 0 auto; font-size: 8pt; color: #666;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+  }
+  .sheet .histHead { text-align: center; font-weight: bold; background: #f0f0f0; }
+  .sheet .histYear { width: 14mm; text-align: center; }
+  .sheet .histMonth { width: 10mm; text-align: center; }
+  .sheet .freeBox { border: 1px solid #000; padding: 6px 8px; min-height: 24mm; white-space: pre-wrap; line-height: 1.7; }
+  .sheet .freeBoxTitle { font-size: 9pt; margin: 8px 0 3px; }
+  .sheet .secGap { margin-top: 6px; }
+  .sheet .keep { break-inside: avoid; page-break-inside: avoid; }
+
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .app, .no-print { display: none !important; }
+    .sheetWrap { overflow: visible; background: #fff; padding: 0; border-radius: 0; }
+    .sheet { box-shadow: none; margin: 0; width: 210mm; min-height: auto; }
+    .sheet .histTable { page-break-inside: auto; }
+    .sheet tr { page-break-inside: avoid; }
+  }
+  @media screen {
+    #printArea { display: none; }
+    #printArea.show { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="formArea">
+  <header class="top">
+    <h1 data-i18n="appTitle">履歴書メーカー</h1>
+    <p data-i18n="appSub">日本の会社に応募するための履歴書を作るアプリです。入力した内容は、このスマホの中にだけ保存されます。</p>
+    <div class="langbar">
+      <button type="button" data-lang="ja">日本語</button>
+      <button type="button" data-lang="en">English</button>
+      <button type="button" data-lang="tl">Tagalog</button>
+    </div>
+  </header>
+
+  <!-- 基本情報 -->
+  <section class="card">
+    <h2 data-i18n="basicInfo">基本情報</h2>
+    <label class="field">
+      <span data-i18n="resumeDate">作成日</span>
+      <input type="date" id="f_resumeDate">
+    </label>
+    <label class="field">
+      <span data-i18n="furigana">フリガナ（カタカナ）</span>
+      <input type="text" id="f_furigana" data-i18n-ph="furiganaPh" placeholder="ゴトウ ユウコ">
+      <small data-i18n="furiganaHint">名前をカタカナで書いてください</small>
+    </label>
+    <label class="field">
+      <span data-i18n="name">氏名</span>
+      <input type="text" id="f_name" data-i18n-ph="namePh" placeholder="後藤 優子">
+    </label>
+    <div class="row2">
+      <label class="field">
+        <span data-i18n="dob">生年月日</span>
+        <input type="date" id="f_dob">
+      </label>
+      <label class="field">
+        <span data-i18n="gender">性別（任意）</span>
+        <select id="f_gender">
+          <option value="" data-i18n="genderNone">書かない</option>
+          <option value="男" data-i18n="male">男</option>
+          <option value="女" data-i18n="female">女</option>
+        </select>
+      </label>
+    </div>
+    <div class="photoBox">
+      <div class="photoPrev" id="photoPrev"><span data-i18n="photo">顔写真</span></div>
+      <div>
+        <label class="btn sub" for="f_photo" data-i18n="photoAdd">写真を選ぶ</label>
+        <input type="file" id="f_photo" accept="image/*" style="display:none">
+        <p class="note" data-i18n="photoHint">縦4cm×横3cmの証明写真が標準です</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 住所・連絡先 -->
+  <section class="card">
+    <h2 data-i18n="contact">住所・連絡先</h2>
+    <div class="row2">
+      <label class="field">
+        <span data-i18n="postal">郵便番号</span>
+        <input type="text" id="f_postal" inputmode="numeric" placeholder="000-0000">
+      </label>
+      <label class="field">
+        <span data-i18n="phone">電話番号</span>
+        <input type="tel" id="f_phone" placeholder="090-0000-0000">
+      </label>
+    </div>
+    <label class="field">
+      <span data-i18n="addressFurigana">住所のフリガナ</span>
+      <input type="text" id="f_addrFurigana" data-i18n-ph="addrFuriganaPh" placeholder="いわてけん おうしゅうし みずさわ…">
+    </label>
+    <label class="field">
+      <span data-i18n="address">現住所</span>
+      <input type="text" id="f_address" data-i18n-ph="addressPh" placeholder="岩手県奥州市水沢…">
+    </label>
+    <label class="field">
+      <span data-i18n="email">メールアドレス</span>
+      <input type="email" id="f_email" placeholder="example@mail.com">
+    </label>
+    <label class="checkline">
+      <input type="checkbox" id="f_contactDiff">
+      <span data-i18n="contactDiff">連絡先が現住所と違う場合はチェック</span>
+    </label>
+    <div id="contactBlock" style="display:none">
+      <div class="row2">
+        <label class="field">
+          <span data-i18n="postal">郵便番号</span>
+          <input type="text" id="f_cPostal" inputmode="numeric" placeholder="000-0000">
+        </label>
+        <label class="field">
+          <span data-i18n="phone">電話番号</span>
+          <input type="tel" id="f_cPhone">
+        </label>
+      </div>
+      <label class="field">
+        <span data-i18n="addressFurigana">住所のフリガナ</span>
+        <input type="text" id="f_cAddrFurigana">
+      </label>
+      <label class="field">
+        <span data-i18n="contactAddr">連絡先住所</span>
+        <input type="text" id="f_cAddress">
+      </label>
+    </div>
+  </section>
+
+  <!-- 学歴 -->
+  <section class="card">
+    <h2 data-i18n="education">学歴</h2>
+    <div id="eduRows"></div>
+    <button type="button" class="btn sub" id="addEdu" data-i18n="addRow">＋ 行を追加</button>
+    <p class="note" data-i18n="eduHint">高校卒業から書くのが一般的です。「入学」「卒業」まで書いてください。</p>
+  </section>
+
+  <!-- 職歴 -->
+  <section class="card">
+    <h2 data-i18n="work">職歴</h2>
+    <div id="workRows"></div>
+    <button type="button" class="btn sub" id="addWork" data-i18n="addRow">＋ 行を追加</button>
+    <p class="note" data-i18n="workHint">会社名と「入社」「退職」を書いてください。今も働いている場合は「現在に至る」と書きます。</p>
+  </section>
+
+  <!-- 免許・資格 -->
+  <section class="card">
+    <h2 data-i18n="licenses">免許・資格</h2>
+    <div id="licRows"></div>
+    <button type="button" class="btn sub" id="addLic" data-i18n="addRow">＋ 行を追加</button>
+  </section>
+
+  <!-- 志望動機 -->
+  <section class="card">
+    <h2 data-i18n="motivation">志望動機</h2>
+    <div class="chips" id="motChips"></div>
+    <div id="motTpls"></div>
+    <p class="note" data-i18n="templateNote">例文はあとから自由に直せます。会社名などは自分の内容に変えてください。</p>
+    <textarea id="f_motivation" data-i18n-ph="motivationPh" placeholder="なぜこの会社で働きたいか書いてください"></textarea>
+  </section>
+
+  <!-- 自己PR -->
+  <section class="card">
+    <h2 data-i18n="selfpr">自己PR・特技</h2>
+    <div class="chips" id="prChips"></div>
+    <div id="prTpls"></div>
+    <p class="note" data-i18n="templateNote">例文はあとから自由に直せます。会社名などは自分の内容に変えてください。</p>
+    <textarea id="f_selfpr" data-i18n-ph="selfprPh" placeholder="自分の強みを書いてください"></textarea>
+  </section>
+
+  <!-- 本人希望欄 -->
+  <section class="card">
+    <h2 data-i18n="requests">本人希望欄</h2>
+    <div class="chips" id="reqChips"></div>
+    <div id="reqTpls"></div>
+    <textarea id="f_requests" data-i18n-ph="requestsPh" placeholder="給料・職種・勤務時間・勤務地などの希望があれば書いてください"></textarea>
+  </section>
+
+  <p class="savedmsg" id="savedMsg"></p>
+  <button type="button" class="btn big" id="btnPreview" data-i18n="preview">プレビューを見る</button>
+  <div style="height:10px"></div>
+  <button type="button" class="btn big" id="btnPrint" data-i18n="print">印刷・PDF保存</button>
+  <p class="note" data-i18n="printHint">印刷画面で「PDFに保存」を選ぶとPDFになります</p>
+  <div style="height:16px"></div>
+  <button type="button" class="btn danger" id="btnClear" data-i18n="clear">入力をすべて消す</button>
+</div>
+
+<!-- 印刷・プレビュー用シート -->
+<div id="printArea">
+  <div class="no-print" style="max-width:760px;margin:10px auto;padding:0 12px;">
+    <button type="button" class="btn" id="btnBack">← <span data-i18n="back">もどる</span></button>
+    <button type="button" class="btn" id="btnPrint2" data-i18n="print">印刷・PDF保存</button>
+  </div>
+  <div class="sheetWrap"><div class="sheet" id="sheet"></div></div>
+</div>
+
+<script>
+"use strict";
+/* ================= I18N ================= */
+const I18N = {
+  ja: {
+    appTitle: "履歴書メーカー", appSub: "日本の会社に応募するための履歴書を作るアプリです。入力した内容は、このスマホの中にだけ保存されます。",
+    basicInfo: "基本情報", resumeDate: "作成日", furigana: "フリガナ（カタカナ）", furiganaPh: "ゴトウ ユウコ",
+    furiganaHint: "名前をカタカナで書いてください", name: "氏名", namePh: "後藤 優子",
+    dob: "生年月日", gender: "性別（任意）", genderNone: "書かない", male: "男", female: "女",
+    photo: "顔写真", photoAdd: "写真を選ぶ", photoHint: "縦4cm×横3cmの証明写真が標準です",
+    contact: "住所・連絡先", postal: "郵便番号", phone: "電話番号", email: "メールアドレス",
+    addressFurigana: "住所のフリガナ", addrFuriganaPh: "いわてけん おうしゅうし みずさわ…",
+    address: "現住所", addressPh: "岩手県奥州市水沢…",
+    contactDiff: "連絡先が現住所と違う場合はチェック", contactAddr: "連絡先住所",
+    education: "学歴", work: "職歴", licenses: "免許・資格",
+    eduHint: "高校卒業から書くのが一般的です。「入学」「卒業」まで書いてください。",
+    workHint: "会社名と「入社」「退職」を書いてください。今も働いている場合は「現在に至る」と書きます。",
+    eduTextPh: "例：○○高等学校 卒業", workTextPh: "例：株式会社○○ 入社", licTextPh: "例：普通自動車第一種運転免許 取得",
+    addRow: "＋ 行を追加", motivation: "志望動機", motivationPh: "なぜこの会社で働きたいか書いてください",
+    selfpr: "自己PR・特技", selfprPh: "自分の強みを書いてください",
+    requests: "本人希望欄", requestsPh: "給料・職種・勤務時間・勤務地などの希望があれば書いてください",
+    templateNote: "例文はあとから自由に直せます。会社名などは自分の内容に変えてください。",
+    useTemplate: "この例文を使う", preview: "プレビューを見る", print: "印刷・PDF保存",
+    printHint: "印刷画面で「PDFに保存」を選ぶとPDFになります",
+    clear: "入力をすべて消す", clearConfirm: "本当にすべて消しますか？", back: "もどる",
+    saved: "自動保存しました", ind_general: "汎用", ind_care: "介護", ind_factory: "工場",
+    ind_food: "飲食", ind_clean: "清掃", ind_sales: "販売"
+  },
+  en: {
+    appTitle: "Japanese Resume Maker", appSub: "Create a resume (rirekisho) for applying to Japanese companies. Everything you type is saved only on this phone — nothing is sent anywhere.",
+    basicInfo: "Basic information", resumeDate: "Resume date", furigana: "Furigana (katakana)", furiganaPh: "GOTO YUKO",
+    furiganaHint: "Write your name in katakana", name: "Full name", namePh: "Yuko Goto",
+    dob: "Date of birth", gender: "Gender (optional)", genderNone: "Prefer not to say", male: "Male", female: "Female",
+    photo: "Photo", photoAdd: "Choose photo", photoHint: "Standard ID photo size: 4cm tall × 3cm wide",
+    contact: "Address & contact", postal: "Postal code", phone: "Phone number", email: "Email",
+    addressFurigana: "Address in furigana", addrFuriganaPh: "iwateken oshushi mizusawa…",
+    address: "Current address", addressPh: "Mizusawa, Oshu, Iwate…",
+    contactDiff: "Check if your contact address is different from above", contactAddr: "Contact address",
+    education: "Education", work: "Work history", licenses: "Licenses & qualifications",
+    eduHint: "Usually start from high school graduation. Write 'entered' and 'graduated' for each school.",
+    workHint: "Write the company name with 'joined' and 'left'. If you still work there, write 'currently employed'.",
+    eduTextPh: "e.g. ○○ High School — Graduated", workTextPh: "e.g. Joined ○○ Co., Ltd.", licTextPh: "e.g. Driver's license — obtained",
+    addRow: "+ Add row", motivation: "Reason for applying", motivationPh: "Write why you want to work at this company",
+    selfpr: "Self-PR & skills", selfprPh: "Write your strengths",
+    requests: "Requests", requestsPh: "Salary, job type, hours, location, or other requests",
+    templateNote: "You can edit the example freely after inserting it. Change the company name etc. to your own situation.",
+    useTemplate: "Use this example", preview: "Preview", print: "Print / Save as PDF",
+    printHint: "In the print dialog, choose “Save as PDF” to make a PDF file",
+    clear: "Clear all entries", clearConfirm: "Delete everything you entered?", back: "Back",
+    saved: "Saved automatically", ind_general: "General", ind_care: "Caregiving", ind_factory: "Factory",
+    ind_food: "Restaurant", ind_clean: "Cleaning", ind_sales: "Sales"
+  },
+  tl: {
+    appTitle: "Tagapagbuo ng Resume (Hapon)", appSub: "Gumawa ng resume (rirekisho) para sa pag-aaplay sa mga kumpanyang Hapon. Lahat ng iyong ilalagay ay naka-save lamang sa teleponong ito — walang ipinapadala kahit saan.",
+    basicInfo: "Pangunahing impormasyon", resumeDate: "Petsa ng resume", furigana: "Furigana (katakana)", furiganaPh: "GOTO YUKO",
+    furiganaHint: "Isulat ang iyong pangalan sa katakana", name: "Buong pangalan", namePh: "Yuko Goto",
+    dob: "Petsa ng kapanganakan", gender: "Kasarian (opsyonal)", genderNone: "Huwag ilagay", male: "Lalaki", female: "Babae",
+    photo: "Larawan", photoAdd: "Pumili ng larawan", photoHint: "Karaniwang sukat ng ID photo: 4cm ang taas × 3cm ang lapad",
+    contact: "Tirahan at kontakt", postal: "Postal code", phone: "Numero ng telepono", email: "Email",
+    addressFurigana: "Tirahan sa furigana", addrFuriganaPh: "iwateken oshushi mizusawa…",
+    address: "Kasalukuyang tirahan", addressPh: "Mizusawa, Oshu, Iwate…",
+    contactDiff: "Lagyan ng tsek kung iba ang address ng kontakt sa tirahan", contactAddr: "Address ng kontakt",
+    education: "Edukasyon", work: "Kasaysayan ng trabaho", licenses: "Mga lisensya at kwalipikasyon",
+    eduHint: "Karaniwang nagsisimula sa pagtatapos ng high school. Isulat ang 'pumasok' at 'nagtapos' sa bawat paaralan.",
+    workHint: "Isulat ang pangalan ng kumpanya kasama ang 'pumasok' at 'umalis'. Kung nagtatrabaho ka pa roon, isulat ang 'kasalukuyang nagtatrabaho'.",
+    eduTextPh: "Hal.: ○○ High School — Nagtapos", workTextPh: "Hal.: Pumasok sa ○○ Co., Ltd.", licTextPh: "Hal.: Lisensya sa pagmamaneho — nakuha",
+    addRow: "+ Magdagdag ng hanay", motivation: "Dahilan ng pag-aaplay", motivationPh: "Isulat kung bakit gusto mong magtrabaho sa kumpanyang ito",
+    selfpr: "Self-PR at kakayahan", selfprPh: "Isulat ang iyong mga kalakasan",
+    requests: "Mga kahilingan", requestsPh: "Sahod, uri ng trabaho, oras, lugar, o iba pang kahilingan",
+    templateNote: "Maaari mong baguhin nang malaya ang halimbawa pagkatapos itong ilagay. Palitan ang pangalan ng kumpanya atbp. ayon sa iyong sitwasyon.",
+    useTemplate: "Gamitin ang halimbawang ito", preview: "Tingnan ang preview", print: "I-print / I-save bilang PDF",
+    printHint: "Sa print dialog, piliin ang “Save as PDF” upang makagawa ng PDF",
+    clear: "Burahin ang lahat", clearConfirm: "Burahin ba talaga ang lahat ng inilagay mo?", back: "Bumalik",
+    saved: "Awtomatikong naka-save", ind_general: "Pangkalahatan", ind_care: "Pangangalaga", ind_factory: "Pabrika",
+    ind_food: "Restawran", ind_clean: "Paglilinis", ind_sales: "Pagbebenta"
+  }
+};
+/* ================= Templates ================= */
+/* 例文本体は履歴書に出力される日本語。gist は UI言語ごとの短い説明。 */
+const TEMPLATES = {
+  motivation: {
+    general: [
+      { gist: { ja: "長く働きたい・真面目さを伝える", en: "Wants to work long-term; serious and reliable", tl: "Gustong magtrabaho nang pangmatagalan; seryoso at maaasahan" },
+        text: "日本で長く働き、生活を安定させたいと考えております。未経験の仕事でも、教えていただいたことを一つひとつ確実に覚え、早く職場の力になりたいと思い、志望いたしました。真面目にコツコツ取り組むことが私の強みです。一日でも早く仕事を覚え、貴社に貢献できるよう努力いたします。" },
+      { gist: { ja: "母国での経験と日本語を活かす", en: "Uses experience from home country and Japanese skills", tl: "Gagamitin ang karanasan sa sariling bansa at ang natutunang Hapon" },
+        text: "母国で培った働く姿勢と、日本で暮らす中で身につけた日本語を活かして働きたいと思い、志望いたしました。分からないことはそのままにせず、確認しながら正確に仕事を進めます。長く勤めて、職場の皆さまに信頼される人材になりたいと考えております。" }
+    ],
+    care: [
+      { gist: { ja: "家族の介護経験がある", en: "Has experience caring for family", tl: "May karanasan sa pag-aalaga ng pamilya" },
+        text: "人の役に立つ仕事がしたいと思い、介護の仕事を志望しました。母国では家族の介護をしてきた経験があり、高齢の方と接することにやりがいを感じています。利用者さま一人ひとりに丁寧に向き合い、安心して過ごしていただけるよう心を配ります。資格の取得にも意欲的に取り組み、長く働きたいと考えております。" },
+      { gist: { ja: "未経験でも研修で覚える意欲", en: "No experience yet, but eager to learn in training", tl: "Wala pang karanasan, ngunit masigasig matuto sa pagsasanay" },
+        text: "人と接する仕事が好きで、介護の仕事に挑戦したいと思い、志望いたしました。介護は未経験ですが、研修を受けながら一つひとつ確実に覚えていきます。明るく元気な対応と、時間を守ることを大切にし、チームの皆さまと協力して働きたいと考えております。" }
+    ],
+    factory: [
+      { gist: { ja: "手順を正確に進める作業の経験", en: "Experience with precise, step-by-step work", tl: "May karanasan sa tumpak at sunud-sunod na gawain" },
+        text: "ものづくりの仕事に興味があり、志望いたしました。これまでの仕事では、手先を使う作業や、決められた手順を正確に進める作業を経験してきました。集中力と体力には自信があります。安全のルールを守り、正確で丁寧な作業を心がけ、長く働きたいと考えております。" },
+      { gist: { ja: "未経験でもメモを取り確実に覚える", en: "Takes notes and learns reliably, even without experience", tl: "Nagtala ng mga note at tiyak na natututo kahit walang karanasan" },
+        text: "安定した環境で長く働きたいと思い、志望いたしました。未経験の作業でも、教えていただいた手順をメモを取りながら確実に覚えます。時間を守ることと整理整頓を大切にし、職場の皆さまと協力して生産に貢献したいと考えております。" }
+    ],
+    food: [
+      { gist: { ja: "料理と衛生管理の経験を活かす", en: "Cooking experience and hygiene awareness", tl: "Karanasan sa pagluluto at kaalaman sa kalinisan" },
+        text: "食べることと、人に喜んでもらうことが好きで、飲食の仕事を志望しました。家庭で多くの料理を作ってきた経験があり、衛生管理の大切さも理解しています。明るい接客と丁寧な仕事を心がけ、お客さまに気持ちよく過ごしていただける店づくりに貢献したいと考えております。" },
+      { gist: { ja: "日本の接客に感動して志望", en: "Inspired by Japanese hospitality", tl: "Napahanga sa serbisyo ng Hapon kaya nag-apply" },
+        text: "日本の飲食店の丁寧な接客に感動し、自分もその一員として働きたいと思い、志望いたしました。キッチンの補助や洗い場など、任された仕事を責任を持って行います。接客の日本語も勉強中ですので、早く覚えて職場の力になりたいと考えております。" }
+    ],
+    clean: [
+      { gist: { ja: "清掃経験があり丁寧な作業ができる", en: "Cleaning experience; careful and efficient", tl: "May karanasan sa paglilinis; maingat at mabilis" },
+        text: "きれいな環境を保つ仕事にやりがいを感じ、清掃の仕事を志望しました。これまで家庭や職場で清掃を担当し、丁寧で手際のよい作業を心がけてきました。決められた手順と時間を守り、使う方が気持ちよく過ごせる空間づくりに貢献したいと考えております。" },
+      { gist: { ja: "コツコツ型・体力に自信", en: "Steady worker with good stamina", tl: "Masipag at matatag, malakas ang katawan" },
+        text: "コツコツと取り組む仕事が得意で、清掃の仕事を選びました。未経験ですが、研修で手順をしっかり覚え、見落としのない丁寧な作業を行います。体を動かすことが好きで、体力にも自信があります。長く安定して働きたいと考えております。" }
+    ],
+    sales: [
+      { gist: { ja: "販売経験があり接客が得意", en: "Sales experience; good with customers", tl: "May karanasan sa pagbebenta; magaling sa customer" },
+        text: "人と接することが好きで、販売の仕事を志望しました。これまでの販売の仕事では、お客さまの要望をよく聞き取ることの大切さを学びました。明るい笑顔と丁寧な対応を心がけ、お店の信頼につながる接客をしたいと考えております。" },
+      { gist: { ja: "日本の接客に憧れて挑戦", en: "Admires Japanese service and wants to try sales", tl: "Hinangaan ang serbisyo ng Hapon at gustong subukan ang pagbebenta" },
+        text: "日本のお店の丁寧な接客に憧れ、販売の仕事に挑戦したいと思い、志望いたしました。レジや品出しなど、基本の仕事から確実に覚えていきます。日本語は勉強中ですが、お客さまに伝わるよう工夫して対応します。長く働いてお店に貢献したいと考えております。" }
+    ]
+  },
+  selfpr: {
+    general: [
+      { gist: { ja: "真面目・確認を怠らない・無遅刻", en: "Serious, double-checks, never late", tl: "Seryoso, laging nagkukumpirma, hindi nahuhuli" },
+        text: "真面目にコツコツ取り組むことが私の強みです。分からないことは必ず確認し、ミスを防ぎます。時間を守ることを大切にしており、これまで無遅刻・無欠勤を続けてきました。日本語は勉強中ですが、仕事に必要な言葉から積極的に覚えています。" },
+      { gist: { ja: "明るく協力して働ける", en: "Cheerful and cooperative", tl: "Masayahin at marunong makipagtulungan" },
+        text: "明るく、人と協力して働くことが得意です。前の職場では同僚と助け合いながら仕事を進め、周囲から信頼を得てきました。新しい環境でも自分から声をかけ、早く職場に慣れるよう努力します。" }
+    ],
+    care: [
+      { gist: { ja: "高齢者との接し方・体力・夜勤可", en: "Good with elderly people; stamina; night shifts OK", tl: "Magaling sa matatanda; malakas; puwede sa night shift" },
+        text: "高齢の方とお話しすることが好きで、相手のペースに合わせて、ゆっくり丁寧に対応できます。家族の介護の経験から、声かけ一つで安心していただけることを学びました。体力にも自信があり、夜勤にも対応できます。" }
+    ],
+    factory: [
+      { gist: { ja: "集中力と手先の器用さ・立ち仕事可", en: "Focused and dexterous; standing work OK", tl: "May konsentrasyon at magaling ang kamay; puwede sa tayuan" },
+        text: "集中力と手先の器用さが強みです。決められた手順を守り、正確に作業を進めることができます。体力にも自信があり、立ち仕事や夜勤にも対応できます。安全を第一に考え、確認を怠らずに作業します。" }
+    ],
+    food: [
+      { gist: { ja: "料理が得意・衛生習慣・落ち着いた対応", en: "Good cook; hygienic; calm under pressure", tl: "Magaling magluto; malinis; kalmado kahit abala" },
+        text: "料理が得意で、衛生面に気を配る習慣があります。忙しい時間帯でも落ち着いて、優先順位をつけて動くことができます。お客さまに笑顔で接することを心がけ、気持ちのよい店づくりに役立ちたいです。" }
+    ],
+    clean: [
+      { gist: { ja: "細部に目が届く・手順と時間を守る", en: "Detail-oriented; follows steps and schedule", tl: "Napapansin ang detalye; sumusunod sa hakbang at oras" },
+        text: "細かいところまで目が届き、きれいに仕上げることにやりがいを感じます。決められた手順と時間を守り、黙々と作業を進めることが得意です。道具や薬剤の扱いも、教わったルールを守って安全に作業します。" }
+    ],
+    sales: [
+      { gist: { ja: "聞き上手・笑顔・土日祝勤務可", en: "Good listener; friendly; weekends OK", tl: "Magaling makinig; palangiti; puwede sa weekend" },
+        text: "お客さまの話をよく聞き、要望に合った提案をすることが得意です。笑顔と丁寧な言葉づかいを心がけています。レジの操作や品出しも、早く正確に覚えることができます。土日・祝日の勤務にも対応できます。" }
+    ]
+  },
+  requests: {
+    general: [
+      { gist: { ja: "すべて会社の規定に従う（一番無難）", en: "Follow company rules for everything (safest)", tl: "Susundin ang patakaran ng kumpanya sa lahat (pinakaligtas)" },
+        text: "貴社の規定に従います。" },
+      { gist: { ja: "規定に従う＋長く働きたい意思", en: "Follow company rules; wants to stay long-term", tl: "Susundin ang patakaran; gustong magtagal sa trabaho" },
+        text: "給与・勤務時間・勤務地等については、貴社の規定に従います。できるだけ長く働きたいと考えておりますので、よろしくお願いいたします。" },
+      { gist: { ja: "曜日や時間に希望がある場合", en: "If you have day/time limits", tl: "Kung may limitasyon sa araw o oras" },
+        text: "家庭の事情により、（　）曜日は（　）時までの勤務を希望いたします。その他の条件については、貴社の規定に従います。" }
+    ]
+  }
+};
+const INDUSTRIES = ["general", "care", "factory", "food", "clean", "sales"];
+
+/* ================= State ================= */
+const LS_KEY = "resumeAppDataV1";
+let lang = "ja";
+let data = {
+  resumeDate: "", furigana: "", name: "", dob: "", gender: "",
+  postal: "", phone: "", email: "", addrFurigana: "", address: "",
+  contactDiff: false, cPostal: "", cPhone: "", cAddrFurigana: "", cAddress: "",
+  photo: "",
+  edu: [], work: [], lic: [],
+  motivation: "", selfpr: "", requests: ""
+};
+function blankRow() { return { y: "", m: "", t: "" }; }
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      data = Object.assign(data, d);
+      if (d.lang && I18N[d.lang]) lang = d.lang;
+    }
+  } catch (e) { /* ignore */ }
+  if (!data.edu.length) data.edu = [blankRow(), blankRow(), blankRow()];
+  if (!data.work.length) data.work = [blankRow(), blankRow(), blankRow()];
+  if (!data.lic.length) data.lic = [blankRow(), blankRow()];
+  if (!data.resumeDate) {
+    const t = new Date();
+    data.resumeDate = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+  }
+}
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(Object.assign({}, data, { lang: lang })));
+      const el = document.getElementById("savedMsg");
+      el.textContent = I18N[lang].saved + " ✓";
+      setTimeout(() => { el.textContent = ""; }, 2000);
+    } catch (e) {
+      document.getElementById("savedMsg").textContent = "保存できませんでした（容量オーバー）";
+    }
+  }, 300);
+}
+
+/* ================= Helpers ================= */
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function jpDate(iso) {
+  if (!iso) return "";
+  const p = iso.split("-");
+  if (p.length !== 3) return iso;
+  return Number(p[0]) + " 年 " + Number(p[1]) + " 月 " + Number(p[2]) + " 日";
+}
+function ageAt(dobIso, atIso) {
+  if (!dobIso || !atIso) return "";
+  const d = new Date(dobIso), a = new Date(atIso);
+  if (isNaN(d) || isNaN(a)) return "";
+  let age = a.getFullYear() - d.getFullYear();
+  const mm = a.getMonth() - d.getMonth();
+  if (mm < 0 || (mm === 0 && a.getDate() < d.getDate())) age--;
+  return age;
+}
+
+/* ================= Dynamic rows ================= */
+function makeRow(section, row, phKey) {
+  const div = document.createElement("div");
+  div.className = "dynrow";
+  const y = document.createElement("input");
+  y.type = "number"; y.className = "y"; y.placeholder = "2024"; y.inputMode = "numeric"; y.value = row.y;
+  const m = document.createElement("input");
+  m.type = "number"; m.className = "m"; m.placeholder = "4"; m.inputMode = "numeric"; m.min = "1"; m.max = "12"; m.value = row.m;
+  const t = document.createElement("input");
+  t.type = "text"; t.className = "t"; t.value = row.t; t.placeholder = I18N[lang][phKey];
+  const del = document.createElement("button");
+  del.type = "button"; del.className = "del"; del.textContent = "×"; del.title = "Delete";
+  y.addEventListener("input", () => { row.y = y.value; save(); renderSheet(); });
+  m.addEventListener("input", () => { row.m = m.value; save(); renderSheet(); });
+  t.addEventListener("input", () => { row.t = t.value; save(); renderSheet(); });
+  del.addEventListener("click", () => {
+    const arr = data[section];
+    const i = arr.indexOf(row);
+    if (i >= 0) arr.splice(i, 1);
+    if (!arr.length) arr.push(blankRow());
+    buildRows(); save(); renderSheet();
+  });
+  div.appendChild(y); div.appendChild(m); div.appendChild(t); div.appendChild(del);
+  return div;
+}
+function buildRows() {
+  const conf = [["edu", "eduRows", "eduTextPh"], ["work", "workRows", "workTextPh"], ["lic", "licRows", "licTextPh"]];
+  conf.forEach(([sec, hostId, ph]) => {
+    const host = $(hostId);
+    host.innerHTML = "";
+    data[sec].forEach(r => host.appendChild(makeRow(sec, r, ph)));
+  });
+}
+
+/* ================= Templates UI ================= */
+function buildTplSection(kind, chipsId, listId, textareaId) {
+  const chips = $(chipsId), list = $(listId);
+  chips.innerHTML = ""; list.innerHTML = "";
+  INDUSTRIES.forEach(ind => {
+    if (!TEMPLATES[kind][ind]) return;
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = I18N[lang]["ind_" + ind];
+    b.addEventListener("click", () => {
+      chips.querySelectorAll("button").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      showTpls(kind, ind, list, textareaId);
+    });
+    chips.appendChild(b);
+  });
+  const first = chips.querySelector("button");
+  if (first) first.click();
+}
+function showTpls(kind, ind, list, textareaId) {
+  list.innerHTML = "";
+  (TEMPLATES[kind][ind] || []).forEach(tpl => {
+    const d = document.createElement("div");
+    d.className = "tpl";
+    const g = document.createElement("div");
+    g.className = "gist"; g.textContent = tpl.gist[lang] || tpl.gist.ja;
+    const b = document.createElement("div");
+    b.className = "body"; b.textContent = tpl.text;
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn"; btn.textContent = I18N[lang].useTemplate;
+    btn.addEventListener("click", () => {
+      const ta = $(textareaId);
+      ta.value = ta.value.trim() ? ta.value.replace(/\s+$/, "") + "\n" + tpl.text : tpl.text;
+      ta.dispatchEvent(new Event("input"));
+      ta.focus();
+    });
+    d.appendChild(g); d.appendChild(b); d.appendChild(btn);
+    list.appendChild(d);
+  });
+}
+function buildAllTpls() {
+  buildTplSection("motivation", "motChips", "motTpls", "f_motivation");
+  buildTplSection("selfpr", "prChips", "prTpls", "f_selfpr");
+  buildTplSection("requests", "reqChips", "reqTpls", "f_requests");
+  // requests has only "general"; hide its chips
+  $("reqChips").style.display = "none";
+}
+
+/* ================= Language ================= */
+function applyLang() {
+  document.documentElement.lang = lang === "tl" ? "tl" : lang;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    if (I18N[lang][k]) el.textContent = I18N[lang][k];
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    const k = el.getAttribute("data-i18n-ph");
+    if (I18N[lang][k]) el.placeholder = I18N[lang][k];
+  });
+  document.querySelectorAll(".langbar button").forEach(b => {
+    b.classList.toggle("active", b.getAttribute("data-lang") === lang);
+  });
+  buildRows();
+  buildAllTpls();
+}
+
+/* ================= Form binding ================= */
+const FIELD_MAP = [
+  ["resumeDate", "f_resumeDate"], ["furigana", "f_furigana"], ["name", "f_name"], ["dob", "f_dob"],
+  ["gender", "f_gender"], ["postal", "f_postal"], ["phone", "f_phone"], ["email", "f_email"],
+  ["addrFurigana", "f_addrFurigana"], ["address", "f_address"],
+  ["cPostal", "f_cPostal"], ["cPhone", "f_cPhone"], ["cAddrFurigana", "f_cAddrFurigana"], ["cAddress", "f_cAddress"],
+  ["motivation", "f_motivation"], ["selfpr", "f_selfpr"], ["requests", "f_requests"]
+];
+function fillForm() {
+  FIELD_MAP.forEach(([k, id]) => { $(id).value = data[k] || ""; });
+  $("f_contactDiff").checked = !!data.contactDiff;
+  $("contactBlock").style.display = data.contactDiff ? "block" : "none";
+  updatePhotoPrev();
+}
+function bindForm() {
+  FIELD_MAP.forEach(([k, id]) => {
+    $(id).addEventListener("input", () => { data[k] = $(id).value; save(); renderSheet(); });
+    $(id).addEventListener("change", () => { data[k] = $(id).value; save(); renderSheet(); });
+  });
+  $("f_contactDiff").addEventListener("change", () => {
+    data.contactDiff = $("f_contactDiff").checked;
+    $("contactBlock").style.display = data.contactDiff ? "block" : "none";
+    save(); renderSheet();
+  });
+  $("f_photo").addEventListener("change", onPhoto);
+  $("addEdu").addEventListener("click", () => { data.edu.push(blankRow()); buildRows(); save(); });
+  $("addWork").addEventListener("click", () => { data.work.push(blankRow()); buildRows(); save(); });
+  $("addLic").addEventListener("click", () => { data.lic.push(blankRow()); buildRows(); save(); });
+  document.querySelectorAll(".langbar button").forEach(b => {
+    b.addEventListener("click", () => { lang = b.getAttribute("data-lang"); applyLang(); save(); });
+  });
+  $("btnPreview").addEventListener("click", () => {
+    renderSheet();
+    $("printArea").classList.add("show");
+    $("printArea").scrollIntoView({ behavior: "smooth" });
+  });
+  $("btnBack").addEventListener("click", () => {
+    $("printArea").classList.remove("show");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  const doPrint = () => { renderSheet(); window.print(); };
+  $("btnPrint").addEventListener("click", doPrint);
+  $("btnPrint2").addEventListener("click", doPrint);
+  $("btnClear").addEventListener("click", () => {
+    if (!confirm(I18N[lang].clearConfirm)) return;
+    localStorage.removeItem(LS_KEY);
+    location.reload();
+  });
+}
+function updatePhotoPrev() {
+  const p = $("photoPrev");
+  if (data.photo) {
+    p.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = data.photo; img.alt = "photo";
+    p.appendChild(img);
+  } else {
+    p.innerHTML = "<span>" + esc(I18N[lang].photo) + "</span>";
+  }
+}
+function onPhoto(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      // Shrink to max 480px wide to keep localStorage small
+      const maxW = 480;
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      data.photo = cv.toDataURL("image/jpeg", 0.85);
+      updatePhotoPrev(); save(); renderSheet();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ================= Sheet rendering (Japanese resume) ================= */
+function histRows(section, headerLabel, emptyLabel) {
+  let html = headerLabel ? '<tr><td colspan="3" class="histHead">' + headerLabel + "</td></tr>" : "";
+  const rows = data[section].filter(r => r.y || r.m || (r.t && r.t.trim()));
+  if (!rows.length && emptyLabel) {
+    html += '<tr><td class="histYear"></td><td class="histMonth"></td><td>' + emptyLabel + "</td></tr>";
+  }
+  rows.forEach(r => {
+    html += '<tr><td class="histYear">' + esc(r.y) + '</td><td class="histMonth">' + esc(r.m) + "</td><td>" + esc(r.t) + "</td></tr>";
+  });
+  return html;
+}
+function renderSheet() {
+  const age = ageAt(data.dob, data.resumeDate);
+  const dobTxt = data.dob ? jpDate(data.dob) + " 生" + (age !== "" ? "（満 " + age + " 歳）" : "") : "";
+  const photoHtml = data.photo
+    ? '<img src="' + data.photo + '" alt="">'
+    : '<div class="photoEmpty">写真<br>（縦40mm×横30mm）</div>';
+  const contactAddr = data.contactDiff ? data.cAddress : "現住所に同じ";
+  const contactFuri = data.contactDiff ? data.cAddrFurigana : "";
+  const contactPostal = data.contactDiff ? data.cPostal : "";
+  const contactPhone = data.contactDiff ? data.cPhone : data.phone;
+  let html = "";
+  html += '<div class="ttl"><div class="t1">履歴書</div><div class="t2">' + esc(jpDate(data.resumeDate)) + " 現在</div></div>";
+  html += "<table>";
+  html += '<tr><td style="width:62%"><div class="lbl">ふりがな</div>' + esc(data.furigana) + '</td><td class="photoCell" rowspan="3">' + photoHtml + "</td></tr>";
+  html += '<tr><td><div class="lbl">氏 名</div><div class="nameBig">' + esc(data.name) + "</div></td></tr>";
+  html += "<tr><td>" + esc(dobTxt) + '</td></tr>';
+  html += '<tr><td colspan="2"><span class="lbl">性別（任意記載）</span>　' + esc(data.gender) + "</td></tr>";
+  html += '<tr><td colspan="2"><div class="lbl">ふりがな</div>' + esc(data.addrFurigana) +
+          '<div><span class="lbl">現住所</span>　〒' + esc(data.postal) + "　" + esc(data.address) + "</div></td></tr>";
+  html += '<tr><td colspan="2"><span class="lbl">電話</span>　' + esc(data.phone) +
+          (data.email ? '　<span class="lbl">E-mail</span>　' + esc(data.email) : "") + "</td></tr>";
+  html += '<tr><td colspan="2"><div class="lbl">ふりがな</div>' + esc(contactFuri) +
+          '<div><span class="lbl">連絡先</span>　' + (contactPostal ? "〒" + esc(contactPostal) + "　" : "") + esc(contactAddr) + "</div></td></tr>";
+  html += '<tr><td colspan="2"><span class="lbl">電話</span>　' + esc(contactPhone) + "</td></tr>";
+  html += "</table>";
+  // 学歴・職歴
+  html += '<table class="histTable secGap"><tr><th class="histYear">年</th><th class="histMonth">月</th><th>学歴・職歴</th></tr>';
+  html += histRows("edu", "学　歴", "");
+  html += histRows("work", "職　歴", "な　し");
+  html += '<tr><td class="histYear"></td><td class="histMonth"></td><td style="text-align:right">以上</td></tr>';
+  html += "</table>";
+  // 免許・資格
+  html += '<table class="secGap"><tr><th class="histYear">年</th><th class="histMonth">月</th><th>免許・資格</th></tr>';
+  html += histRows("lic", null, "な　し");
+  html += "</table>";
+  // 志望動機
+  html += '<div class="keep"><div class="freeBoxTitle">志望の動機</div><div class="freeBox">' + esc(data.motivation) + "</div></div>";
+  html += '<div class="keep"><div class="freeBoxTitle">特技・好きな学科・アピールポイント（自己PR）</div><div class="freeBox">' + esc(data.selfpr) + "</div></div>";
+  // 本人希望
+  html += '<div class="keep"><div class="freeBoxTitle">本人希望記入欄（特に給料・職種・勤務時間・勤務地・その他についての希望などがあれば記入）</div><div class="freeBox">' + esc(data.requests) + "</div></div>";
+  $("sheet").innerHTML = html;
+}
+
+/* ================= Init ================= */
+load();
+fillForm();
+bindForm();
+applyLang();
+renderSheet();
+</script>
+</body>
+</html>
