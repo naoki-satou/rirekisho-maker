@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>履歴書メーカー v3 / Japanese Resume Maker</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+    background: #eef2f7; color: #1c2733; -webkit-text-size-adjust: 100%;
+  }
+  #wizardApp { max-width: 560px; margin: 0 auto; padding: 14px 14px 40px; }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    background: linear-gradient(135deg, #1f4e79, #2f6fed);
+    color: #fff; border-radius: 18px; padding: 16px 16px 12px; margin-bottom: 14px;
+    box-shadow: 0 4px 14px rgba(31,78,121,.25);
+  }
+  .topbar h1 { font-size: 19px; margin: 0 0 4px; letter-spacing: .02em; }
+  .topbar p { font-size: 12px; margin: 0; line-height: 1.5; opacity: .92; }
+  .langbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .langbar button {
+    flex: 1 1 30%; padding: 8px 2px; font-size: 13px; border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,.85); background: transparent; color: #fff; cursor: pointer;
+    font-family: inherit;
+  }
+  .langbar button.active { background: #fff; color: #1f4e79; font-weight: bold; }
+
+  /* ===== Progress ===== */
+  .progressBox { margin: 2px 2px 12px; }
+  .progressText { font-size: 14px; font-weight: bold; color: #1f4e79; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progressTrack { height: 12px; background: #d8e2ee; border-radius: 999px; overflow: hidden; }
+  .progressFill { height: 100%; background: #2f6fed; border-radius: 999px; transition: width .3s ease; }
+
+  /* ===== Question card ===== */
+  .qcard {
+    background: #fff; border-radius: 20px; padding: 22px 18px 20px;
+    box-shadow: 0 2px 10px rgba(20,40,70,.08);
+  }
+  .qtitle { font-size: 22px; font-weight: bold; line-height: 1.45; margin: 0 0 8px; }
+  .qhint { font-size: 14px; color: #5a6a7a; line-height: 1.6; margin: 0 0 16px; }
+  .qwarn {
+    display: none; border: 1.5px solid #b3261e; background: #fdf3f2; color: #7a1a14;
+    border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.6; margin-bottom: 14px;
+  }
+  .qbody input[type="text"], .qbody input[type="tel"], .qbody input[type="email"],
+  .qbody input[type="number"], .qbody select, .qbody textarea {
+    width: 100%; padding: 14px; font-size: 18px; border: 2px solid #c4d2e0; border-radius: 12px;
+    background: #fff; font-family: inherit; color: #1c2733;
+  }
+  .qbody input:focus, .qbody select:focus, .qbody textarea:focus { outline: none; border-color: #2f6fed; }
+  .qbody textarea { min-height: 150px; line-height: 1.7; resize: vertical; }
+  .qbody label.flabel { display: block; font-size: 14px; font-weight: bold; margin: 14px 0 6px; color: #33506e; }
+  .qbody label.flabel:first-child { margin-top: 0; }
+  .dateRow { display: flex; gap: 8px; }
+  .dateRow > div { flex: 1; }
+  .dateRow .unit { display: block; font-size: 13px; font-weight: bold; color: #5a6a7a; margin-bottom: 4px; text-align: center; }
+
+  /* Choice buttons (tap to select) */
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choices .choice {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 16px 16px; font-size: 17px; line-height: 1.4; border-radius: 14px;
+    border: 2px solid #c4d2e0; background: #fff; color: #1c2733; cursor: pointer; font-family: inherit;
+  }
+  .choices .choice .mark { flex: none; width: 24px; text-align: center; font-weight: bold; color: transparent; }
+  .choices .choice.selected { border-color: #2f6fed; background: #eaf1fe; font-weight: bold; }
+  .choices .choice.selected .mark { color: #2f6fed; }
+  .choices.row2 { flex-direction: row; }
+  .choices.row2 .choice { justify-content: center; text-align: center; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+  .chips button {
+    padding: 12px 16px; font-size: 16px; border-radius: 999px; border: 2px solid #2f6fed;
+    background: #fff; color: #1f4e79; cursor: pointer; font-family: inherit;
+  }
+  .chips button.active { background: #2f6fed; color: #fff; font-weight: bold; }
+
+  /* Dynamic rows inside a question */
+  .dynrow { display: flex; gap: 6px; margin-bottom: 8px; align-items: stretch; }
+  .dynrow select.y { width: 104px; flex: none; padding: 12px 6px; font-size: 16px; }
+  .dynrow select.m { width: 74px; flex: none; padding: 12px 6px; font-size: 16px; }
+  .dynrow .t { flex: 1; min-width: 0; }
+  .dynrow select.lv { flex: 0 1 150px; padding: 12px 6px; font-size: 15px; min-width: 0; }
+  .dynrow .del {
+    flex: none; width: 44px; border-radius: 12px; border: 2px solid #e0b4b0;
+    background: #fdf3f2; font-size: 18px; cursor: pointer; color: #b3261e;
+  }
+  .quickchips { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px 0; }
+  .quickchips button {
+    padding: 8px 14px; font-size: 14px; border-radius: 999px; border: 1.5px solid #7d99b5;
+    background: #f2f6fb; color: #1f4e79; cursor: pointer; font-family: inherit;
+  }
+  .addbtn {
+    width: 100%; padding: 13px; font-size: 16px; border-radius: 12px; cursor: pointer; font-family: inherit;
+    border: 2px dashed #7d99b5; background: #f7fafc; color: #1f4e79; font-weight: bold;
+  }
+
+  /* Templates (motivation / selfpr / requests) */
+  .tpl {
+    border: 1.5px solid #d5dce4; border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fbfcfe;
+  }
+  .tpl .gist { font-size: 13px; color: #1f4e79; font-weight: bold; margin-bottom: 4px; }
+  .tpl .body { font-size: 14px; line-height: 1.7; white-space: pre-wrap; margin-bottom: 10px; }
+  .tpl .btn { padding: 10px 14px; font-size: 14px; }
+  .note { font-size: 12px; color: #666; line-height: 1.6; }
+
+  /* Photo */
+  .photoBox { display: flex; gap: 12px; align-items: flex-start; }
+  .photoPrev {
+    width: 90px; height: 120px; border: 2px dashed #999; border-radius: 8px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;
+    background: #fafafa; text-align: center; flex: none;
+  }
+  .photoPrev img { width: 100%; height: 100%; object-fit: cover; }
+  #adjFrame {
+    position: relative; width: 180px; height: 240px; overflow: hidden;
+    border: 2px solid #1f4e79; border-radius: 6px; background: #eee; touch-action: none; cursor: grab;
+  }
+  #adjFrame img { position: absolute; max-width: none; user-select: none; -webkit-user-drag: none; }
+  .adjCtl { display: flex; align-items: center; gap: 8px; margin: 10px 0; max-width: 340px; }
+  .adjCtl > span { font-size: 13px; font-weight: bold; flex: none; }
+  .adjCtl input[type="range"] { flex: 1; }
+  .adjBtns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ===== Buttons ===== */
+  .btn {
+    display: inline-block; padding: 12px 18px; font-size: 16px; border-radius: 12px; border: none;
+    background: #2f6fed; color: #fff; cursor: pointer; font-family: inherit;
+  }
+  .btn.sub { background: #e8edf3; color: #1f4e79; }
+  .btn.danger { background: #b3261e; color: #fff; }
+  .navrow { display: flex; gap: 10px; margin-top: 16px; }
+  .navrow .btn { min-height: 56px; font-size: 17px; }
+  .navrow .grow { flex: 1; font-weight: bold; }
+  .navrow .backbtn { flex: 0 0 104px; }
+  .skiprow { margin-top: 10px; text-align: center; }
+  .skiprow button {
+    background: none; border: none; color: #5a6a7a; font-size: 15px; padding: 10px 18px;
+    cursor: pointer; font-family: inherit; text-decoration: underline;
+  }
+  .previewBar { margin-top: 18px; text-align: center; }
+  .previewBar .btn { width: 100%; min-height: 52px; background: #fff; color: #1f4e79; border: 2px solid #1f4e79; font-weight: bold; }
+  .savedmsg { font-size: 12px; color: #2e7d32; min-height: 16px; text-align: right; margin-top: 6px; }
+
+  /* Check result on final screen */
+  #checkResult {
+    display: none; border: 1.5px solid #b3261e; background: #fdf3f2; color: #7a1a14;
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 15px; line-height: 1.7;
+  }
+  #checkResult.ok { border-color: #2e7d32; background: #f1f8f1; color: #1b5e20; }
+  #checkResult ul { margin: 4px 0 0; padding-left: 20px; }
+  .doneBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+  .doneBtns .btn { min-height: 56px; font-size: 17px; font-weight: bold; width: 100%; }
+  .doneBtns .btn.sub, .doneBtns .btn.danger { font-weight: normal; }
+
+  /* ===== Preview overlay ===== */
+  #previewOverlay {
+    display: none; position: fixed; inset: 0; background: #5c6670; z-index: 50;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  #previewOverlay.show { display: block; }
+  #previewOverlay .toolbar {
+    position: sticky; top: 0; z-index: 2; background: rgba(28,39,51,.94);
+    padding: 10px 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+  }
+  #previewOverlay .toolbar .btn { min-height: 48px; }
+  .sheetWrap { position: relative; margin: 12px auto; }
+  .sheetScaler { transform-origin: top left; }
+
+  /* ===== Resume sheet (from v2, unchanged style) ===== */
+  .sheet {
+    width: 210mm; min-height: 297mm; background: #fff; margin: 0; padding: 9mm 11mm;
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "MS Mincho", serif; color: #000;
+    font-size: 11pt; line-height: 1.5;
+  }
+  .sheet table { border-collapse: collapse; width: 100%; }
+  .sheet td, .sheet th { border: 1px solid #000; padding: 3px 6px; vertical-align: middle; }
+  .sheet .ttl { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
+  .sheet .ttl .t1 { font-size: 20pt; letter-spacing: .6em; font-weight: bold; }
+  .sheet .ttl .t2 { font-size: 10pt; }
+  .sheet .lbl { font-size: 8pt; color: #000; }
+  .sheet .nameBig { font-size: 16pt; letter-spacing: .15em; }
+  .sheet .photoCell { width: 30mm; text-align: center; }
+  .sheet .photoCell img { width: 30mm; height: 40mm; object-fit: cover; display: block; margin: 0 auto; }
+  .sheet .photoEmpty {
+    width: 30mm; height: 40mm; border: 1px dotted #666; margin: 0 auto; font-size: 8pt; color: #666;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+  }
+  .sheet .histHead { text-align: center; font-weight: bold; background: #f0f0f0; }
+  .sheet .histYear { width: 14mm; text-align: center; }
+  .sheet .histMonth { width: 10mm; text-align: center; }
+  .sheet .freeBox { border: 1px solid #000; padding: 6px 8px; min-height: 21mm; white-space: pre-wrap; line-height: 1.7; }
+  .sheet .freeBoxTitle { font-size: 9pt; margin: 8px 0 3px; }
+  .sheet .secGap { margin-top: 6px; }
+  .sheet .keep { break-inside: avoid; page-break-inside: avoid; }
+
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    #wizardApp { display: none !important; }
+    #previewOverlay { display: block !important; position: static; overflow: visible; background: #fff; }
+    #previewOverlay .toolbar { display: none !important; }
+    .sheetWrap { margin: 0; height: auto !important; }
+    .sheetScaler { transform: none !important; }
+    .sheet { box-shadow: none; margin: 0; width: 210mm; min-height: auto; }
+    .sheet .histTable { page-break-inside: auto; }
+    .sheet tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div id="wizardApp">
+  <header class="topbar">
+    <h1 data-i18n="appTitle">履歴書メーカー</h1>
+    <p data-i18n="appSub">日本の会社に応募するための履歴書を作るアプリです。入力した内容は、このスマホの中にだけ保存されます。</p>
+    <div class="langbar">
+      <button type="button" data-lang="ja">日本語</button>
+      <button type="button" data-lang="en">English</button>
+      <button type="button" data-lang="tl">Tagalog</button>
+      <button type="button" data-lang="vi">Tiếng Việt</button>
+      <button type="button" data-lang="id">Bahasa Indonesia</button>
+    </div>
+  </header>
+
+  <div class="progressBox" id="progressBox">
+    <div class="progressText"><span id="progressLabel"></span><span id="progressPct"></span></div>
+    <div class="progressTrack"><div class="progressFill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="qcard">
+    <p class="qtitle" id="qTitle"></p>
+    <p class="qhint" id="qHint" style="display:none"></p>
+    <div class="qwarn" id="qWarn"></div>
+    <div class="qbody" id="qBody"></div>
+    <div class="navrow" id="navRow">
+      <button type="button" class="btn sub backbtn" id="btnBackQ">← <span data-i18n="back">もどる</span></button>
+      <button type="button" class="btn grow" id="btnNextQ"><span data-i18n="next" id="nextLabel">次へ</span> →</button>
+    </div>
+    <div class="skiprow" id="skipRow" style="display:none">
+      <button type="button" id="btnSkipQ" data-i18n="skip">スキップ</button>
+    </div>
+  </div>
+
+  <div class="previewBar">
+    <button type="button" class="btn" id="btnPreviewMid" data-i18n="preview">プレビューを見る</button>
+  </div>
+  <p class="savedmsg" id="savedMsg"></p>
+</div>
+
+<!-- プレビュー（途中・完成 共通） -->
+<div id="previewOverlay">
+  <div class="toolbar">
+    <button type="button" class="btn sub" id="btnBackToQ">← <span data-i18n="backToQ">質問にもどる</span></button>
+    <button type="button" class="btn" id="btnPrintOv" data-i18n="print">印刷・PDF保存</button>
+  </div>
+  <div class="sheetWrap" id="sheetWrap"><div class="sheetScaler" id="sheetScaler"><div class="sheet" id="sheet"></div></div></div>
+</div>
+
+<script>
+"use strict";
+/* ================= I18N ================= */
+/* 例文・プレースホルダーは一般例のみ（実在の個人情報は入れない） */
+const I18N = {
+  ja: {
+    appTitle: "履歴書メーカー", appSub: "日本の会社に応募するための履歴書を作るアプリです。質問に1つずつ答えるだけで完成します。入力した内容は、このスマホの中にだけ保存されます。",
+    basicInfo: "基本情報", resumeDate: "作成日", furigana: "フリガナ（カタカナ）", furiganaPh: "ヤマダ ハナコ",
+    furiganaHint: "名前をカタカナで書いてください", name: "氏名", namePh: "山田 花子",
+    dob: "生年月日", gender: "性別（任意）", genderNone: "書かない", male: "男", female: "女",
+    photo: "顔写真", photoAdd: "写真を選ぶ", photoHint: "縦4cm×横3cmの証明写真が標準です",
+    photoAdjust: "写真の位置・大きさを調整",
+    photoAdjustHint: "ドラッグで写真を動かし、スライダーで大きく・小さくできます。枠は証明写真の大きさ（縦4×横3）です。",
+    photoDone: "この位置で決める", photoReset: "元の写真に戻す", zoom: "拡大",
+    contact: "住所・連絡先", postal: "郵便番号", phone: "電話番号", email: "メールアドレス",
+    addressFurigana: "住所のフリガナ", addrFuriganaPh: "とうきょうと しんじゅくく…",
+    address: "現住所", addressPh: "東京都新宿区…",
+    contactDiff: "連絡先が現住所と違う場合はチェック", contactAddr: "連絡先住所",
+    foreignInfo: "外国人に関する情報", nationality: "国籍", nationalityPh: "例：フィリピン",
+    visaStatus: "在留資格", visaFree: "在留資格について（自由記入）", visaFreePh: "例：就労制限なし",
+    selectNone: "選択してください", jpLevel: "日本語レベル",
+    langSkills: "その他の言語スキル", langNamePh: "言語名（例：英語）",
+    visa_permanent: "永住者", visa_longterm: "定住者", visa_spouse_jp: "日本人の配偶者等",
+    visa_spouse_perm: "永住者の配偶者等", visa_engineer: "技術・人文知識・国際業務", visa_trainee: "技能実習",
+    visa_specified1: "特定技能1号", visa_specified2: "特定技能2号", visa_student: "留学",
+    visa_dependent: "家族滞在", visa_other: "その他",
+    jp_n1: "N1相当", jp_n2: "N2相当", jp_n3: "N3相当", jp_n4: "N4相当", jp_n5: "N5相当",
+    jp_daily: "日常会話レベル", jp_basic: "簡単な日常会話レベル", jp_study: "勉強中",
+    lv_native: "母国語", lv_business: "ビジネスレベル", lv_daily: "日常会話レベル",
+    lv_basic: "簡単な会話レベル", lv_study: "勉強中",
+    education: "学歴", work: "職歴", licenses: "免許・資格",
+    eduHint: "高校卒業から書くのが一般的です。「入学」「卒業」まで書いてください。",
+    workHint: "会社名と「入社」「退職」を書いてください。今も働いている場合は「現在に至る」と書きます。",
+    eduTextPh: "例：○○高等学校 卒業", workTextPh: "例：株式会社○○ 入社", licTextPh: "例：普通自動車第一種運転免許 取得",
+    addRow: "＋ 行を追加", motivation: "志望動機", motivationPh: "なぜこの会社で働きたいか書いてください",
+    selfpr: "自己PR・特技", selfprPh: "自分の強みを書いてください",
+    requests: "本人希望欄", requestsPh: "給料・職種・勤務時間・勤務地などの希望があれば書いてください",
+    templateNote: "例文はあとから自由に直せます。会社名などは自分の内容に変えてください。",
+    useTemplate: "この例文を使う", preview: "プレビューを見る", print: "印刷・PDF保存",
+    printHint: "印刷画面で「PDFに保存」を選ぶとPDFになります",
+    clear: "入力をすべて消す", clearConfirm: "本当にすべて消しますか？", back: "もどる",
+    saved: "自動保存しました", ind_general: "汎用", ind_care: "介護", ind_factory: "工場",
+    ind_food: "飲食", ind_clean: "清掃", ind_sales: "販売", ind_construction: "建設",
+    chkTitle: "次の項目を確認してください",
+    chkName: "氏名が未入力です", chkFurigana: "フリガナが未入力です", chkDob: "生年月日が未入力です",
+    chkAddress: "現住所が未入力です", chkPhoneEmpty: "電話番号が未入力です",
+    chkPhone: "電話番号の形式を確認してください", chkEmail: "メールアドレスの形式を確認してください",
+    chkOrderEdu: "学歴の年月が前後している可能性があります", chkOrderWork: "職歴の年月が前後している可能性があります",
+    chkOk: "入力チェック：問題は見つかりませんでした ✓",
+    next: "次へ", skip: "スキップ", finish: "完成",
+    questionOf: "{n} / {t} 問目", backToQ: "質問にもどる",
+    doneTitle: "完成しました", doneMsg: "おつかれさまでした。下のボタンから、履歴書の確認と印刷ができます。",
+    reviewFromStart: "最初から見直す", tapToChoose: "タップして選んでください",
+    yearL: "年", monthL: "月", dayL: "日",
+    prefL: "都道府県", addressRestPh: "市区町村・番地・建物名など",
+    sameAsAddress: "現住所に同じ", differentAddress: "別の住所",
+    yesHas: "ある", noNone: "ない", otherLabel: "その他",
+    nationalityFreePh: "国籍を書いてください"
+  },
+  en: {
+    appTitle: "Japanese Resume Maker", appSub: "Create a resume (rirekisho) for applying to Japanese companies. Just answer one question at a time. Everything you type is saved only on this phone — nothing is sent anywhere.",
+    basicInfo: "Basic information", resumeDate: "Resume date", furigana: "Furigana (katakana)", furiganaPh: "YAMADA HANAKO",
+    furiganaHint: "Write your name in katakana", name: "Full name", namePh: "Hanako Yamada",
+    dob: "Date of birth", gender: "Gender (optional)", genderNone: "Prefer not to say", male: "Male", female: "Female",
+    photo: "Photo", photoAdd: "Choose photo", photoHint: "Standard ID photo size: 4cm tall × 3cm wide",
+    photoAdjust: "Adjust photo position / size",
+    photoAdjustHint: "Drag to move the photo and use the slider to zoom in or out. The frame is ID-photo size (4 tall × 3 wide).",
+    photoDone: "Use this position", photoReset: "Reset to original photo", zoom: "Zoom",
+    contact: "Address & contact", postal: "Postal code", phone: "Phone number", email: "Email",
+    addressFurigana: "Address in furigana", addrFuriganaPh: "tokyoto shinjukuku…",
+    address: "Current address", addressPh: "Shinjuku, Tokyo…",
+    contactDiff: "Check if your contact address is different from above", contactAddr: "Contact address",
+    foreignInfo: "Information for foreign residents", nationality: "Nationality", nationalityPh: "e.g. Philippines",
+    visaStatus: "Residence status (visa)", visaFree: "About your residence status (free text)", visaFreePh: "e.g. No work restrictions",
+    selectNone: "Please select", jpLevel: "Japanese level",
+    langSkills: "Other languages", langNamePh: "Language (e.g. English)",
+    visa_permanent: "Permanent resident", visa_longterm: "Long-term resident", visa_spouse_jp: "Spouse of Japanese national",
+    visa_spouse_perm: "Spouse of permanent resident", visa_engineer: "Engineer / Specialist in Humanities / International Services",
+    visa_trainee: "Technical intern trainee", visa_specified1: "Specified Skilled Worker (i)", visa_specified2: "Specified Skilled Worker (ii)",
+    visa_student: "Student", visa_dependent: "Dependent (family stay)", visa_other: "Other",
+    jp_n1: "JLPT N1 level", jp_n2: "JLPT N2 level", jp_n3: "JLPT N3 level", jp_n4: "JLPT N4 level", jp_n5: "JLPT N5 level",
+    jp_daily: "Daily conversation level", jp_basic: "Basic conversation level", jp_study: "Still learning",
+    lv_native: "Native", lv_business: "Business level", lv_daily: "Daily conversation level",
+    lv_basic: "Basic conversation level", lv_study: "Still learning",
+    education: "Education", work: "Work history", licenses: "Licenses & qualifications",
+    eduHint: "Usually start from high school graduation. Write 'entered' and 'graduated' for each school.",
+    workHint: "Write the company name with 'joined' and 'left'. If you still work there, write 'currently employed'.",
+    eduTextPh: "e.g. ○○ High School — Graduated", workTextPh: "e.g. Joined ○○ Co., Ltd.", licTextPh: "e.g. Driver's license — obtained",
+    addRow: "+ Add row", motivation: "Reason for applying", motivationPh: "Write why you want to work at this company",
+    selfpr: "Self-PR & skills", selfprPh: "Write your strengths",
+    requests: "Requests", requestsPh: "Salary, job type, hours, location, or other requests",
+    templateNote: "You can edit the example freely after inserting it. Change the company name etc. to your own situation.",
+    useTemplate: "Use this example", preview: "Preview", print: "Print / Save as PDF",
+    printHint: "In the print dialog, choose “Save as PDF” to make a PDF file",
+    clear: "Clear all entries", clearConfirm: "Delete everything you entered?", back: "Back",
+    saved: "Saved automatically", ind_general: "General", ind_care: "Caregiving", ind_factory: "Factory",
+    ind_food: "Restaurant", ind_clean: "Cleaning", ind_sales: "Sales", ind_construction: "Construction",
+    chkTitle: "Please check the following",
+    chkName: "Full name is empty", chkFurigana: "Furigana is empty", chkDob: "Date of birth is empty",
+    chkAddress: "Current address is empty", chkPhoneEmpty: "Phone number is empty",
+    chkPhone: "Please check the phone number format", chkEmail: "Please check the email format",
+    chkOrderEdu: "Education dates may be out of order", chkOrderWork: "Work history dates may be out of order",
+    chkOk: "Check complete: no problems found ✓",
+    next: "Next", skip: "Skip", finish: "Finish",
+    questionOf: "Question {n} of {t}", backToQ: "Back to questions",
+    doneTitle: "Your resume is ready", doneMsg: "Well done. Use the buttons below to check and print your resume.",
+    reviewFromStart: "Review from the start", tapToChoose: "Tap to choose",
+    yearL: "Year", monthL: "Month", dayL: "Day",
+    prefL: "Prefecture", addressRestPh: "City, street number, building name…",
+    sameAsAddress: "Same as my current address", differentAddress: "A different address",
+    yesHas: "Yes, I have", noNone: "No, none", otherLabel: "Other",
+    nationalityFreePh: "Type your nationality"
+  },
+  tl: {
+    appTitle: "Tagapagbuo ng Resume (Hapon)", appSub: "Gumawa ng resume (rirekisho) para sa pag-aaplay sa mga kumpanyang Hapon. Sagutin lang ang isang tanong sa bawat pagkakataon. Lahat ng iyong ilalagay ay naka-save lamang sa teleponong ito — walang ipinapadala kahit saan.",
+    basicInfo: "Pangunahing impormasyon", resumeDate: "Petsa ng resume", furigana: "Furigana (katakana)", furiganaPh: "YAMADA HANAKO",
+    furiganaHint: "Isulat ang iyong pangalan sa katakana", name: "Buong pangalan", namePh: "Hanako Yamada",
+    dob: "Petsa ng kapanganakan", gender: "Kasarian (opsyonal)", genderNone: "Huwag ilagay", male: "Lalaki", female: "Babae",
+    photo: "Larawan", photoAdd: "Pumili ng larawan", photoHint: "Karaniwang sukat ng ID photo: 4cm ang taas × 3cm ang lapad",
+    photoAdjust: "Ayusin ang posisyon / laki ng larawan",
+    photoAdjustHint: "I-drag upang igalaw ang larawan, gamitin ang slider upang palakihin o paliitin. Ang frame ay sukat ng ID photo (taas 4 × lapad 3).",
+    photoDone: "Gamitin ang posisyong ito", photoReset: "Ibalik sa orihinal na larawan", zoom: "Palakihin",
+    contact: "Tirahan at kontakt", postal: "Postal code", phone: "Numero ng telepono", email: "Email",
+    addressFurigana: "Tirahan sa furigana", addrFuriganaPh: "tokyoto shinjukuku…",
+    address: "Kasalukuyang tirahan", addressPh: "Shinjuku, Tokyo…",
+    contactDiff: "Lagyan ng tsek kung iba ang address ng kontakt sa tirahan", contactAddr: "Address ng kontakt",
+    foreignInfo: "Impormasyon para sa mga dayuhan", nationality: "Nasyonalidad", nationalityPh: "Hal.: Pilipinas",
+    visaStatus: "Status ng paninirahan (visa)", visaFree: "Tungkol sa status ng paninirahan (malayang sulat)", visaFreePh: "Hal.: Walang limitasyon sa trabaho",
+    selectNone: "Pumili…", jpLevel: "Antas ng wikang Hapon",
+    langSkills: "Iba pang wika", langNamePh: "Wika (Hal.: Ingles)",
+    visa_permanent: "Permanenteng residente", visa_longterm: "Pangmatagalang residente", visa_spouse_jp: "Asawa ng Hapones",
+    visa_spouse_perm: "Asawa ng permanenteng residente", visa_engineer: "Engineer / Humanities / International Services",
+    visa_trainee: "Technical intern trainee", visa_specified1: "Specified Skilled Worker 1", visa_specified2: "Specified Skilled Worker 2",
+    visa_student: "Estudyante", visa_dependent: "Dependent (family stay)", visa_other: "Iba pa",
+    jp_n1: "Katumbas ng JLPT N1", jp_n2: "Katumbas ng JLPT N2", jp_n3: "Katumbas ng JLPT N3", jp_n4: "Katumbas ng JLPT N4", jp_n5: "Katumbas ng JLPT N5",
+    jp_daily: "Antas ng pang-araw-araw na usapan", jp_basic: "Antas ng simpleng usapan", jp_study: "Nag-aaral pa",
+    lv_native: "Sariling wika", lv_business: "Antas pang-negosyo", lv_daily: "Antas ng pang-araw-araw na usapan",
+    lv_basic: "Antas ng simpleng usapan", lv_study: "Nag-aaral pa",
+    education: "Edukasyon", work: "Kasaysayan ng trabaho", licenses: "Mga lisensya at kwalipikasyon",
+    eduHint: "Karaniwang nagsisimula sa pagtatapos ng high school. Isulat ang 'pumasok' at 'nagtapos' sa bawat paaralan.",
+    workHint: "Isulat ang pangalan ng kumpanya kasama ang 'pumasok' at 'umalis'. Kung nagtatrabaho ka pa roon, isulat ang 'kasalukuyang nagtatrabaho'.",
+    eduTextPh: "Hal.: ○○ High School — Nagtapos", workTextPh: "Hal.: Pumasok sa ○○ Co., Ltd.", licTextPh: "Hal.: Lisensya sa pagmamaneho — nakuha",
+    addRow: "+ Magdagdag ng hanay", motivation: "Dahilan ng pag-aaplay", motivationPh: "Isulat kung bakit gusto mong magtrabaho sa kumpanyang ito",
+    selfpr: "Self-PR at kakayahan", selfprPh: "Isulat ang iyong mga kalakasan",
+    requests: "Mga kahilingan", requestsPh: "Sahod, uri ng trabaho, oras, lugar, o iba pang kahilingan",
+    templateNote: "Maaari mong baguhin nang malaya ang halimbawa pagkatapos itong ilagay. Palitan ang pangalan ng kumpanya atbp. ayon sa iyong sitwasyon.",
+    useTemplate: "Gamitin ang halimbawang ito", preview: "Tingnan ang preview", print: "I-print / I-save bilang PDF",
+    printHint: "Sa print dialog, piliin ang “Save as PDF” upang makagawa ng PDF",
+    clear: "Burahin ang lahat", clearConfirm: "Burahin ba talaga ang lahat ng inilagay mo?", back: "Bumalik",
+    saved: "Awtomatikong naka-save", ind_general: "Pangkalahatan", ind_care: "Pangangalaga", ind_factory: "Pabrika",
+    ind_food: "Restawran", ind_clean: "Paglilinis", ind_sales: "Pagbebenta", ind_construction: "Konstruksyon",
+    chkTitle: "Pakitingnan ang mga sumusunod",
+    chkName: "Walang laman ang buong pangalan", chkFurigana: "Walang laman ang furigana", chkDob: "Walang laman ang petsa ng kapanganakan",
+    chkAddress: "Walang laman ang kasalukuyang tirahan", chkPhoneEmpty: "Walang laman ang numero ng telepono",
+    chkPhone: "Pakitingnan ang format ng numero ng telepono", chkEmail: "Pakitingnan ang format ng email",
+    chkOrderEdu: "Maaaring baliktad ang ayos ng taon/buwan sa edukasyon", chkOrderWork: "Maaaring baliktad ang ayos ng taon/buwan sa trabaho",
+    chkOk: "Tapos ang pagsusuri: walang nakitang problema ✓",
+    next: "Susunod", skip: "Laktawan", finish: "Tapusin",
+    questionOf: "Tanong {n} ng {t}", backToQ: "Bumalik sa mga tanong",
+    doneTitle: "Tapos na ang iyong resume", doneMsg: "Tapos na. Gamitin ang mga button sa ibaba upang tingnan at i-print ang iyong resume.",
+    reviewFromStart: "Suriin mula sa simula", tapToChoose: "I-tap upang pumili",
+    yearL: "Taon", monthL: "Buwan", dayL: "Araw",
+    prefL: "Prefecture", addressRestPh: "Lungsod, numero ng kalye, gusali…",
+    sameAsAddress: "Kapareho ng kasalukuyang tirahan", differentAddress: "Ibang address",
+    yesHas: "Mayroon", noNone: "Wala", otherLabel: "Iba pa",
+    nationalityFreePh: "Isulat ang iyong nasyonalidad"
+  },
+  vi: {
+    appTitle: "Tạo sơ yếu lý lịch (Nhật Bản)", appSub: "Tạo sơ yếu lý lịch (rirekisho) để ứng tuyển vào các công ty Nhật Bản. Chỉ cần trả lời từng câu hỏi một. Mọi thông tin bạn nhập chỉ được lưu trên điện thoại này — không gửi đi đâu cả.",
+    basicInfo: "Thông tin cơ bản", resumeDate: "Ngày tạo", furigana: "Furigana (katakana)", furiganaPh: "YAMADA HANAKO",
+    furiganaHint: "Viết tên của bạn bằng katakana", name: "Họ và tên", namePh: "Hanako Yamada",
+    dob: "Ngày sinh", gender: "Giới tính (tùy chọn)", genderNone: "Không ghi", male: "Nam", female: "Nữ",
+    photo: "Ảnh chân dung", photoAdd: "Chọn ảnh", photoHint: "Ảnh thẻ tiêu chuẩn: cao 4cm × rộng 3cm",
+    photoAdjust: "Chỉnh vị trí / kích thước ảnh",
+    photoAdjustHint: "Kéo để di chuyển ảnh, dùng thanh trượt để phóng to / thu nhỏ. Khung là kích thước ảnh thẻ (cao 4 × rộng 3).",
+    photoDone: "Dùng vị trí này", photoReset: "Đặt lại ảnh gốc", zoom: "Phóng to",
+    contact: "Địa chỉ & liên lạc", postal: "Mã bưu điện", phone: "Số điện thoại", email: "Email",
+    addressFurigana: "Địa chỉ bằng furigana", addrFuriganaPh: "tokyoto shinjukuku…",
+    address: "Địa chỉ hiện tại", addressPh: "Shinjuku, Tokyo…",
+    contactDiff: "Đánh dấu nếu địa chỉ liên lạc khác với địa chỉ trên", contactAddr: "Địa chỉ liên lạc",
+    foreignInfo: "Thông tin dành cho người nước ngoài", nationality: "Quốc tịch", nationalityPh: "VD: Philippines",
+    visaStatus: "Tư cách lưu trú", visaFree: "Ghi chú thêm về tư cách lưu trú (tự do)", visaFreePh: "VD: Không giới hạn làm việc",
+    selectNone: "Chọn…", jpLevel: "Trình độ tiếng Nhật",
+    langSkills: "Ngôn ngữ khác", langNamePh: "Tên ngôn ngữ (VD: Tiếng Anh)",
+    visa_permanent: "Vĩnh trú", visa_longterm: "Định trú dài hạn", visa_spouse_jp: "Vợ/chồng của người Nhật",
+    visa_spouse_perm: "Vợ/chồng của người vĩnh trú", visa_engineer: "Kỹ sư / Tri thức nhân văn / Nghiệp vụ quốc tế",
+    visa_trainee: "Thực tập sinh kỹ năng", visa_specified1: "Kỹ năng đặc định số 1", visa_specified2: "Kỹ năng đặc định số 2",
+    visa_student: "Du học", visa_dependent: "Đoàn tụ gia đình", visa_other: "Khác",
+    jp_n1: "Tương đương JLPT N1", jp_n2: "Tương đương JLPT N2", jp_n3: "Tương đương JLPT N3", jp_n4: "Tương đương JLPT N4", jp_n5: "Tương đương JLPT N5",
+    jp_daily: "Mức giao tiếp hằng ngày", jp_basic: "Mức giao tiếp đơn giản", jp_study: "Đang học",
+    lv_native: "Ngôn ngữ mẹ đẻ", lv_business: "Mức công việc (business)", lv_daily: "Mức giao tiếp hằng ngày",
+    lv_basic: "Mức giao tiếp đơn giản", lv_study: "Đang học",
+    education: "Học vấn", work: "Kinh nghiệm làm việc", licenses: "Bằng cấp & chứng chỉ",
+    eduHint: "Thường bắt đầu từ khi tốt nghiệp cấp 3. Ghi 'nhập học' và 'tốt nghiệp' cho mỗi trường.",
+    workHint: "Ghi tên công ty kèm 'vào làm' và 'nghỉ việc'. Nếu vẫn đang làm, ghi 'hiện đang làm việc'.",
+    eduTextPh: "VD: Trường THPT ○○ — Tốt nghiệp", workTextPh: "VD: Vào làm tại Công ty ○○", licTextPh: "VD: Bằng lái xe ô tô — đã đạt được",
+    addRow: "+ Thêm dòng", motivation: "Lý do ứng tuyển", motivationPh: "Viết lý do bạn muốn làm việc tại công ty này",
+    selfpr: "Giới thiệu bản thân & kỹ năng", selfprPh: "Viết về điểm mạnh của bạn",
+    requests: "Nguyện vọng", requestsPh: "Lương, loại công việc, giờ làm, nơi làm việc hoặc nguyện vọng khác",
+    templateNote: "Bạn có thể sửa câu mẫu thoải mái sau khi chèn. Hãy đổi tên công ty v.v. theo tình huống của bạn.",
+    useTemplate: "Dùng câu mẫu này", preview: "Xem trước", print: "In / Lưu thành PDF",
+    printHint: "Trong hộp thoại in, chọn “Lưu thành PDF” để tạo file PDF",
+    clear: "Xóa toàn bộ", clearConfirm: "Xóa thật toàn bộ nội dung đã nhập?", back: "Quay lại",
+    saved: "Đã tự động lưu", ind_general: "Chung", ind_care: "Chăm sóc (điều dưỡng)", ind_factory: "Nhà máy",
+    ind_food: "Nhà hàng", ind_clean: "Vệ sinh", ind_sales: "Bán hàng", ind_construction: "Xây dựng",
+    chkTitle: "Hãy kiểm tra các mục sau",
+    chkName: "Chưa nhập họ và tên", chkFurigana: "Chưa nhập furigana", chkDob: "Chưa nhập ngày sinh",
+    chkAddress: "Chưa nhập địa chỉ hiện tại", chkPhoneEmpty: "Chưa nhập số điện thoại",
+    chkPhone: "Hãy kiểm tra lại định dạng số điện thoại", chkEmail: "Hãy kiểm tra lại định dạng email",
+    chkOrderEdu: "Thứ tự năm/tháng trong mục học vấn có thể bị ngược", chkOrderWork: "Thứ tự năm/tháng trong mục kinh nghiệm có thể bị ngược",
+    chkOk: "Đã kiểm tra: không phát hiện vấn đề nào ✓",
+    next: "Tiếp theo", skip: "Bỏ qua", finish: "Hoàn thành",
+    questionOf: "Câu hỏi {n}/{t}", backToQ: "Quay lại phần câu hỏi",
+    doneTitle: "Hồ sơ của bạn đã hoàn thành", doneMsg: "Bạn đã hoàn thành. Dùng các nút bên dưới để xem và in hồ sơ.",
+    reviewFromStart: "Xem lại từ đầu", tapToChoose: "Chạm để chọn",
+    yearL: "Năm", monthL: "Tháng", dayL: "Ngày",
+    prefL: "Tỉnh/thành phố", addressRestPh: "Thành phố, số nhà, tên tòa nhà…",
+    sameAsAddress: "Giống địa chỉ hiện tại", differentAddress: "Địa chỉ khác",
+    yesHas: "Có", noNone: "Không có", otherLabel: "Khác",
+    nationalityFreePh: "Nhập quốc tịch của bạn"
+  },
+  id: {
+    appTitle: "Pembuat Resume (Jepang)", appSub: "Buat resume (rirekisho) untuk melamar ke perusahaan Jepang. Cukup jawab satu pertanyaan setiap kali. Semua yang Anda ketik hanya tersimpan di ponsel ini — tidak dikirim ke mana pun.",
+    basicInfo: "Informasi dasar", resumeDate: "Tanggal pembuatan", furigana: "Furigana (katakana)", furiganaPh: "YAMADA HANAKO",
+    furiganaHint: "Tulis nama Anda dengan katakana", name: "Nama lengkap", namePh: "Hanako Yamada",
+    dob: "Tanggal lahir", gender: "Jenis kelamin (opsional)", genderNone: "Tidak diisi", male: "Laki-laki", female: "Perempuan",
+    photo: "Foto", photoAdd: "Pilih foto", photoHint: "Ukuran pas foto standar: tinggi 4cm × lebar 3cm",
+    photoAdjust: "Atur posisi / ukuran foto",
+    photoAdjustHint: "Seret untuk menggeser foto, gunakan penggeser untuk memperbesar / memperkecil. Bingkai ini adalah ukuran pas foto (tinggi 4 × lebar 3).",
+    photoDone: "Gunakan posisi ini", photoReset: "Kembalikan ke foto asli", zoom: "Perbesar",
+    contact: "Alamat & kontak", postal: "Kode pos", phone: "Nomor telepon", email: "Email",
+    addressFurigana: "Alamat dalam furigana", addrFuriganaPh: "tokyoto shinjukuku…",
+    address: "Alamat sekarang", addressPh: "Shinjuku, Tokyo…",
+    contactDiff: "Centang jika alamat kontak berbeda dari alamat di atas", contactAddr: "Alamat kontak",
+    foreignInfo: "Informasi untuk warga asing", nationality: "Kewarganegaraan", nationalityPh: "cth. Indonesia",
+    visaStatus: "Status izin tinggal", visaFree: "Catatan tambahan status izin tinggal (bebas)", visaFreePh: "cth. Tanpa batasan kerja",
+    selectNone: "Pilih…", jpLevel: "Kemampuan bahasa Jepang",
+    langSkills: "Bahasa lain", langNamePh: "Nama bahasa (cth. Bahasa Inggris)",
+    visa_permanent: "Penduduk tetap (permanent resident)", visa_longterm: "Penduduk jangka panjang", visa_spouse_jp: "Pasangan warga Jepang",
+    visa_spouse_perm: "Pasangan penduduk tetap", visa_engineer: "Insinyur / Humaniora / Layanan internasional",
+    visa_trainee: "Magang teknis (ginou jisshuu)", visa_specified1: "Pekerja berketerampilan spesifik No.1", visa_specified2: "Pekerja berketerampilan spesifik No.2",
+    visa_student: "Pelajar", visa_dependent: "Tanggungan keluarga", visa_other: "Lainnya",
+    jp_n1: "Setara JLPT N1", jp_n2: "Setara JLPT N2", jp_n3: "Setara JLPT N3", jp_n4: "Setara JLPT N4", jp_n5: "Setara JLPT N5",
+    jp_daily: "Tingkat percakapan sehari-hari", jp_basic: "Tingkat percakapan sederhana", jp_study: "Sedang belajar",
+    lv_native: "Bahasa ibu", lv_business: "Tingkat bisnis", lv_daily: "Tingkat percakapan sehari-hari",
+    lv_basic: "Tingkat percakapan sederhana", lv_study: "Sedang belajar",
+    education: "Pendidikan", work: "Riwayat pekerjaan", licenses: "Lisensi & kualifikasi",
+    eduHint: "Biasanya dimulai dari kelulusan SMA. Tulis 'masuk' dan 'lulus' untuk setiap sekolah.",
+    workHint: "Tulis nama perusahaan beserta 'masuk' dan 'keluar'. Jika masih bekerja di sana, tulis 'masih bekerja'.",
+    eduTextPh: "cth. SMA ○○ — Lulus", workTextPh: "cth. Masuk PT ○○", licTextPh: "cth. SIM mobil — diperoleh",
+    addRow: "+ Tambah baris", motivation: "Alasan melamar", motivationPh: "Tulis alasan Anda ingin bekerja di perusahaan ini",
+    selfpr: "Promosi diri & keahlian", selfprPh: "Tulis kelebihan Anda",
+    requests: "Permintaan", requestsPh: "Gaji, jenis pekerjaan, jam kerja, lokasi, atau permintaan lain",
+    templateNote: "Contoh dapat diubah dengan bebas setelah dimasukkan. Ganti nama perusahaan dsb. sesuai keadaan Anda.",
+    useTemplate: "Gunakan contoh ini", preview: "Pratinjau", print: "Cetak / Simpan sebagai PDF",
+    printHint: "Pada dialog cetak, pilih “Simpan sebagai PDF” untuk membuat file PDF",
+    clear: "Hapus semua isian", clearConfirm: "Hapus semua yang sudah Anda isi?", back: "Kembali",
+    saved: "Tersimpan otomatis", ind_general: "Umum", ind_care: "Perawatan (kaigo)", ind_factory: "Pabrik",
+    ind_food: "Restoran", ind_clean: "Kebersihan", ind_sales: "Penjualan", ind_construction: "Konstruksi",
+    chkTitle: "Mohon periksa hal berikut",
+    chkName: "Nama lengkap belum diisi", chkFurigana: "Furigana belum diisi", chkDob: "Tanggal lahir belum diisi",
+    chkAddress: "Alamat sekarang belum diisi", chkPhoneEmpty: "Nomor telepon belum diisi",
+    chkPhone: "Mohon periksa format nomor telepon", chkEmail: "Mohon periksa format email",
+    chkOrderEdu: "Urutan tahun/bulan pada riwayat pendidikan mungkin terbalik", chkOrderWork: "Urutan tahun/bulan pada riwayat pekerjaan mungkin terbalik",
+    chkOk: "Pemeriksaan selesai: tidak ditemukan masalah ✓",
+    next: "Berikutnya", skip: "Lewati", finish: "Selesai",
+    questionOf: "Pertanyaan {n} dari {t}", backToQ: "Kembali ke pertanyaan",
+    doneTitle: "Resume Anda sudah jadi", doneMsg: "Selesai. Gunakan tombol di bawah untuk memeriksa dan mencetak resume Anda.",
+    reviewFromStart: "Tinjau dari awal", tapToChoose: "Ketuk untuk memilih",
+    yearL: "Tahun", monthL: "Bulan", dayL: "Tanggal",
+    prefL: "Prefektur", addressRestPh: "Kota, nomor jalan, nama gedung…",
+    sameAsAddress: "Sama dengan alamat sekarang", differentAddress: "Alamat berbeda",
+    yesHas: "Ada", noNone: "Tidak ada", otherLabel: "Lainnya",
+    nationalityFreePh: "Tulis kewarganegaraan Anda"
+  }
+};
+
+/* 質問文（ステップごと・5言語） */
+const QUESTIONS = {
+  resumeDate: { ja: "履歴書の日付を選んでください", en: "What date goes on the resume?", tl: "Anong petsa ang ilalagay sa resume?", vi: "Chọn ngày ghi trên sơ yếu lý lịch", id: "Pilih tanggal untuk resume" },
+  name: { ja: "氏名を教えてください", en: "What is your full name?", tl: "Ano ang buong pangalan mo?", vi: "Họ và tên của bạn là gì?", id: "Siapa nama lengkap Anda?" },
+  furigana: { ja: "氏名のフリガナを教えてください", en: "How is your name written in katakana (furigana)?", tl: "Paano isulat ang pangalan mo sa katakana (furigana)?", vi: "Tên của bạn viết bằng katakana (furigana) như thế nào?", id: "Bagaimana nama Anda ditulis dalam katakana (furigana)?" },
+  dob: { ja: "生年月日を選んでください", en: "What is your date of birth?", tl: "Kailan ang iyong kaarawan?", vi: "Ngày sinh của bạn là ngày nào?", id: "Kapan tanggal lahir Anda?" },
+  gender: { ja: "性別を選んでください（任意）", en: "Gender (optional)", tl: "Kasarian (opsyonal)", vi: "Giới tính (tùy chọn)", id: "Jenis kelamin (opsional)" },
+  photo: { ja: "顔写真を入れてください（任意）", en: "Add your photo (optional)", tl: "Maglagay ng larawan (opsyonal)", vi: "Thêm ảnh chân dung (tùy chọn)", id: "Tambahkan foto Anda (opsional)" },
+  postal: { ja: "郵便番号を教えてください", en: "What is your postal code?", tl: "Ano ang iyong postal code?", vi: "Mã bưu điện của bạn là gì?", id: "Berapa kode pos Anda?" },
+  address: { ja: "今住んでいる住所を教えてください", en: "What is your current address?", tl: "Ano ang iyong kasalukuyang tirahan?", vi: "Địa chỉ hiện tại của bạn là gì?", id: "Di mana alamat Anda sekarang?" },
+  addrFurigana: { ja: "住所のフリガナを教えてください", en: "How is your address read in furigana?", tl: "Paano basahin ang tirahan sa furigana?", vi: "Địa chỉ của bạn đọc bằng furigana như thế nào?", id: "Bagaimana alamat Anda dibaca dalam furigana?" },
+  phone: { ja: "電話番号を教えてください", en: "What is your phone number?", tl: "Ano ang numero ng telepono mo?", vi: "Số điện thoại của bạn là gì?", id: "Berapa nomor telepon Anda?" },
+  email: { ja: "メールアドレスを教えてください（任意）", en: "Email address (optional)", tl: "Email address (opsyonal)", vi: "Địa chỉ email (tùy chọn)", id: "Alamat email (opsional)" },
+  contactDiff: { ja: "連絡先は、現住所と同じですか？", en: "Is your contact address the same as your current address?", tl: "Pareho ba ang address ng kontakt sa kasalukuyang tirahan?", vi: "Địa chỉ liên lạc có giống địa chỉ hiện tại không?", id: "Apakah alamat kontak sama dengan alamat sekarang?" },
+  contactBlock: { ja: "連絡先の住所を教えてください", en: "What is the contact address?", tl: "Ano ang address ng kontakt?", vi: "Địa chỉ liên lạc là gì?", id: "Di mana alamat kontaknya?" },
+  nationality: { ja: "国籍を教えてください", en: "What is your nationality?", tl: "Ano ang iyong nasyonalidad?", vi: "Quốc tịch của bạn là gì?", id: "Apa kewarganegaraan Anda?" },
+  visaStatus: { ja: "在留資格を選んでください", en: "Choose your residence status (visa)", tl: "Piliin ang iyong status ng paninirahan (visa)", vi: "Chọn tư cách lưu trú của bạn", id: "Pilih status izin tinggal Anda" },
+  visaFree: { ja: "在留資格について、補足があれば書いてください（任意）", en: "Anything to add about your residence status? (optional)", tl: "May idadagdag ka ba tungkol sa status ng paninirahan? (opsyonal)", vi: "Có ghi chú thêm về tư cách lưu trú không? (tùy chọn)", id: "Ada catatan tentang status izin tinggal? (opsional)" },
+  jpLevel: { ja: "日本語のレベルを選んでください", en: "Choose your Japanese level", tl: "Piliin ang antas ng iyong wikang Hapon", vi: "Chọn trình độ tiếng Nhật của bạn", id: "Pilih tingkat kemampuan bahasa Jepang Anda" },
+  langSkills: { ja: "日本語のほかに話せる言語はありますか？（任意）", en: "Other languages you speak (optional)", tl: "Iba pang wikang sinasalita mo (opsyonal)", vi: "Ngôn ngữ khác bạn biết (tùy chọn)", id: "Bahasa lain yang Anda bisa (opsional)" },
+  edu: { ja: "学歴を教えてください", en: "Tell us your education history", tl: "Sabihin ang iyong edukasyon", vi: "Cho biết quá trình học vấn của bạn", id: "Ceritakan riwayat pendidikan Anda" },
+  work: { ja: "職歴を教えてください", en: "Tell us your work history", tl: "Sabihin ang iyong kasaysayan ng trabaho", vi: "Cho biết kinh nghiệm làm việc của bạn", id: "Ceritakan riwayat pekerjaan Anda" },
+  licGate: { ja: "免許や資格はありますか？", en: "Do you have any licenses or qualifications?", tl: "May lisensya o kwalipikasyon ka ba?", vi: "Bạn có bằng cấp / chứng chỉ nào không?", id: "Apakah Anda punya lisensi atau kualifikasi?" },
+  lic: { ja: "免許・資格を教えてください", en: "List your licenses & qualifications", tl: "Ilista ang iyong mga lisensya at kwalipikasyon", vi: "Liệt kê bằng cấp & chứng chỉ của bạn", id: "Tuliskan lisensi & kualifikasi Anda" },
+  motivation: { ja: "志望動機を書いてください", en: "Write your reason for applying", tl: "Isulat ang dahilan ng pag-aaplay", vi: "Viết lý do ứng tuyển của bạn", id: "Tulis alasan Anda melamar" },
+  selfpr: { ja: "自己PR・特技を書いてください", en: "Write your self-PR & skills", tl: "Isulat ang iyong self-PR at kakayahan", vi: "Viết phần giới thiệu bản thân & kỹ năng", id: "Tulis promosi diri & keahlian Anda" },
+  requests: { ja: "会社への希望があれば書いてください（任意）", en: "Any requests for the company? (optional)", tl: "May kahilingan ka ba sa kumpanya? (opsyonal)", vi: "Bạn có nguyện vọng gì với công ty không? (tùy chọn)", id: "Ada permintaan untuk perusahaan? (opsional)" }
+};
+
+/* ================= Select options (values are the Japanese output text) ================= */
+const VISA_OPTIONS = [
+  { k: "visa_permanent", v: "永住者" }, { k: "visa_longterm", v: "定住者" },
+  { k: "visa_spouse_jp", v: "日本人の配偶者等" }, { k: "visa_spouse_perm", v: "永住者の配偶者等" },
+  { k: "visa_engineer", v: "技術・人文知識・国際業務" }, { k: "visa_trainee", v: "技能実習" },
+  { k: "visa_specified1", v: "特定技能1号" }, { k: "visa_specified2", v: "特定技能2号" },
+  { k: "visa_student", v: "留学" }, { k: "visa_dependent", v: "家族滞在" }, { k: "visa_other", v: "その他" }
+];
+const JP_OPTIONS = [
+  { k: "jp_n1", v: "日本語能力試験N1レベル" }, { k: "jp_n2", v: "日本語能力試験N2レベル" },
+  { k: "jp_n3", v: "日本語能力試験N3レベル" }, { k: "jp_n4", v: "日本語能力試験N4レベル" },
+  { k: "jp_n5", v: "日本語能力試験N5レベル" }, { k: "jp_daily", v: "日常会話レベル" },
+  { k: "jp_basic", v: "簡単な日常会話レベル" }, { k: "jp_study", v: "勉強中" }
+];
+const LV_OPTIONS = [
+  { k: "lv_native", v: "母国語" }, { k: "lv_business", v: "ビジネスレベル" },
+  { k: "lv_daily", v: "日常会話レベル" }, { k: "lv_basic", v: "簡単な会話レベル" }, { k: "lv_study", v: "勉強中" }
+];
+/* 都道府県（全国47の一覧。選択肢データであり個人情報ではない） */
+const PREFECTURES = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+/* 国籍の候補（履歴書への出力は日本語表記） */
+const NATIONALITIES = ["フィリピン", "ベトナム", "インドネシア", "ネパール", "ミャンマー", "中国", "バングラデシュ", "スリランカ", "タイ", "カンボジア", "モンゴル", "ブラジル", "ペルー"];
+
+/* ================= Templates (v2から流用) ================= */
+/* 例文本体は履歴書に出力される日本語。gist は UI言語ごとの短い説明。 */
+const TEMPLATES = {
+  motivation: {
+    general: [
+      { gist: { ja: "長く働きたい・真面目さを伝える", en: "Wants to work long-term; serious and reliable", tl: "Gustong magtrabaho nang pangmatagalan; seryoso at maaasahan", vi: "Muốn làm việc lâu dài; nghiêm túc, đáng tin cậy", id: "Ingin bekerja jangka panjang; serius dan dapat diandalkan" },
+        text: "日本で長く働き、生活を安定させたいと考えております。未経験の仕事でも、教えていただいたことを一つひとつ確実に覚え、早く職場の力になりたいと思い、志望いたしました。真面目にコツコツ取り組むことが私の強みです。一日でも早く仕事を覚え、貴社に貢献できるよう努力いたします。" },
+      { gist: { ja: "母国での経験と日本語を活かす", en: "Uses experience from home country and Japanese skills", tl: "Gagamitin ang karanasan sa sariling bansa at ang natutunang Hapon", vi: "Dùng kinh nghiệm ở quê nhà và tiếng Nhật đã học", id: "Memakai pengalaman dari negara asal dan kemampuan bahasa Jepang" },
+        text: "母国で培った働く姿勢と、日本で暮らす中で身につけた日本語を活かして働きたいと思い、志望いたしました。分からないことはそのままにせず、確認しながら正確に仕事を進めます。長く勤めて、職場の皆さまに信頼される人材になりたいと考えております。" }
+    ],
+    care: [
+      { gist: { ja: "家族の介護経験がある", en: "Has experience caring for family", tl: "May karanasan sa pag-aalaga ng pamilya", vi: "Có kinh nghiệm chăm sóc người thân trong gia đình", id: "Berpengalaman merawat anggota keluarga" },
+        text: "人の役に立つ仕事がしたいと思い、介護の仕事を志望しました。母国では家族の介護をしてきた経験があり、高齢の方と接することにやりがいを感じています。利用者さま一人ひとりに丁寧に向き合い、安心して過ごしていただけるよう心を配ります。資格の取得にも意欲的に取り組み、長く働きたいと考えております。" },
+      { gist: { ja: "未経験でも研修で覚える意欲", en: "No experience yet, but eager to learn in training", tl: "Wala pang karanasan, ngunit masigasig matuto sa pagsasanay", vi: "Chưa có kinh nghiệm nhưng ham học hỏi qua đào tạo", id: "Belum berpengalaman, tetapi bersemangat belajar lewat pelatihan" },
+        text: "人と接する仕事が好きで、介護の仕事に挑戦したいと思い、志望いたしました。介護は未経験ですが、研修を受けながら一つひとつ確実に覚えていきます。明るく元気な対応と、時間を守ることを大切にし、チームの皆さまと協力して働きたいと考えております。" },
+      { gist: { ja: "介護の資格（初任者研修など）を活かす", en: "Has care-worker training certificate; wants to use it", tl: "May sertipiko ng pagsasanay sa pangangalaga; gustong gamitin ito", vi: "Đã hoàn thành khóa đào tạo nhân viên chăm sóc; muốn vận dụng", id: "Sudah menyelesaikan pelatihan perawat kaigo; ingin memanfaatkannya" },
+        text: "介護職員初任者研修を修了し、学んだ知識と技術を現場で活かしたいと思い、志望いたしました。利用者さまの気持ちに寄り添い、その方らしい生活を支える介護を心がけます。記録や報告を丁寧に行い、チームの皆さまと情報を共有しながら、安心していただける支援をしたいと考えております。" }
+    ],
+    factory: [
+      { gist: { ja: "手順を正確に進める作業の経験", en: "Experience with precise, step-by-step work", tl: "May karanasan sa tumpak at sunud-sunod na gawain", vi: "Có kinh nghiệm làm việc chính xác theo quy trình", id: "Berpengalaman dalam pekerjaan teliti mengikuti prosedur" },
+        text: "ものづくりの仕事に興味があり、志望いたしました。これまでの仕事では、手先を使う作業や、決められた手順を正確に進める作業を経験してきました。集中力と体力には自信があります。安全のルールを守り、正確で丁寧な作業を心がけ、長く働きたいと考えております。" },
+      { gist: { ja: "未経験でもメモを取り確実に覚える", en: "Takes notes and learns reliably, even without experience", tl: "Nagtala ng mga note at tiyak na natututo kahit walang karanasan", vi: "Ghi chép cẩn thận và học việc chắc chắn dù chưa có kinh nghiệm", id: "Mencatat dan belajar dengan pasti meski belum berpengalaman" },
+        text: "安定した環境で長く働きたいと思い、志望いたしました。未経験の作業でも、教えていただいた手順をメモを取りながら確実に覚えます。時間を守ることと整理整頓を大切にし、職場の皆さまと協力して生産に貢献したいと考えております。" }
+    ],
+    food: [
+      { gist: { ja: "料理と衛生管理の経験を活かす", en: "Cooking experience and hygiene awareness", tl: "Karanasan sa pagluluto at kaalaman sa kalinisan", vi: "Kinh nghiệm nấu ăn và ý thức vệ sinh", id: "Pengalaman memasak dan kesadaran kebersihan" },
+        text: "食べることと、人に喜んでもらうことが好きで、飲食の仕事を志望しました。家庭で多くの料理を作ってきた経験があり、衛生管理の大切さも理解しています。明るい接客と丁寧な仕事を心がけ、お客さまに気持ちよく過ごしていただける店づくりに貢献したいと考えております。" },
+      { gist: { ja: "日本の接客に感動して志望", en: "Inspired by Japanese hospitality", tl: "Napahanga sa serbisyo ng Hapon kaya nag-apply", vi: "Ấn tượng với phong cách phục vụ của Nhật nên ứng tuyển", id: "Terinspirasi oleh keramahan Jepang sehingga melamar" },
+        text: "日本の飲食店の丁寧な接客に感動し、自分もその一員として働きたいと思い、志望いたしました。キッチンの補助や洗い場など、任された仕事を責任を持って行います。接客の日本語も勉強中ですので、早く覚えて職場の力になりたいと考えております。" }
+    ],
+    clean: [
+      { gist: { ja: "清掃経験があり丁寧な作業ができる", en: "Cleaning experience; careful and efficient", tl: "May karanasan sa paglilinis; maingat at mabilis", vi: "Có kinh nghiệm vệ sinh; làm việc cẩn thận, gọn gàng", id: "Berpengalaman membersihkan; rapi dan cekatan" },
+        text: "きれいな環境を保つ仕事にやりがいを感じ、清掃の仕事を志望しました。これまで家庭や職場で清掃を担当し、丁寧で手際のよい作業を心がけてきました。決められた手順と時間を守り、使う方が気持ちよく過ごせる空間づくりに貢献したいと考えております。" },
+      { gist: { ja: "コツコツ型・体力に自信", en: "Steady worker with good stamina", tl: "Masipag at matatag, malakas ang katawan", vi: "Kiên trì, chịu khó; thể lực tốt", id: "Tekun dan pekerja keras; stamina baik" },
+        text: "コツコツと取り組む仕事が得意で、清掃の仕事を選びました。未経験ですが、研修で手順をしっかり覚え、見落としのない丁寧な作業を行います。体を動かすことが好きで、体力にも自信があります。長く安定して働きたいと考えております。" }
+    ],
+    sales: [
+      { gist: { ja: "販売経験があり接客が得意", en: "Sales experience; good with customers", tl: "May karanasan sa pagbebenta; magaling sa customer", vi: "Có kinh nghiệm bán hàng; giỏi tiếp khách", id: "Berpengalaman di penjualan; pandai melayani pelanggan" },
+        text: "人と接することが好きで、販売の仕事を志望しました。これまでの販売の仕事では、お客さまの要望をよく聞き取ることの大切さを学びました。明るい笑顔と丁寧な対応を心がけ、お店の信頼につながる接客をしたいと考えております。" },
+      { gist: { ja: "日本の接客に憧れて挑戦", en: "Admires Japanese service and wants to try sales", tl: "Hinangaan ang serbisyo ng Hapon at gustong subukan ang pagbebenta", vi: "Yêu thích phong cách phục vụ của Nhật, muốn thử sức bán hàng", id: "Mengagumi pelayanan Jepang dan ingin mencoba penjualan" },
+        text: "日本のお店の丁寧な接客に憧れ、販売の仕事に挑戦したいと思い、志望いたしました。レジや品出しなど、基本の仕事から確実に覚えていきます。日本語は勉強中ですが、お客さまに伝わるよう工夫して対応します。長く働いてお店に貢献したいと考えております。" }
+    ],
+    construction: [
+      { gist: { ja: "建設に興味・体力と安全意識", en: "Construction interest; stamina and safety awareness", tl: "Interes sa konstruksyon; malakas ang katawan at may kamalayan sa kaligtasan", vi: "Yêu thích công việc xây dựng; thể lực tốt và ý thức an toàn", id: "Minat di konstruksi; stamina baik dan sadar keselamatan" },
+        text: "ものづくりの現場で働くことにやりがいを感じ、建設の仕事を志望しました。これまでの仕事で体を動かす作業に慣れており、体力には自信があります。安全のルールを守ることの大切さを理解しており、決められた手順と確認を怠らずに作業します。長く働き、職場の皆さまに信頼される人材になりたいと考えております。" },
+      { gist: { ja: "未経験でも資格取得に意欲的", en: "No experience yet, but eager to earn qualifications", tl: "Wala pang karanasan, ngunit masigasig kumuha ng kwalipikasyon", vi: "Chưa có kinh nghiệm nhưng muốn lấy chứng chỉ", id: "Belum berpengalaman, tetapi bersemangat mengambil kualifikasi" },
+        text: "新しい仕事に挑戦したいと思い、建設の仕事を志望いたしました。建設は未経験ですが、先輩方の指導を受けながら、基本の作業から一つひとつ確実に覚えていきます。仕事に必要な資格の取得にも意欲的に取り組み、長く勤めて職場に貢献したいと考えております。" }
+    ]
+  },
+  selfpr: {
+    general: [
+      { gist: { ja: "真面目・確認を怠らない・無遅刻", en: "Serious, double-checks, never late", tl: "Seryoso, laging nagkukumpirma, hindi nahuhuli", vi: "Nghiêm túc, luôn kiểm tra lại, không đi muộn", id: "Serius, selalu memeriksa ulang, tidak pernah terlambat" },
+        text: "真面目にコツコツ取り組むことが私の強みです。分からないことは必ず確認し、ミスを防ぎます。時間を守ることを大切にしており、これまで無遅刻・無欠勤を続けてきました。日本語は勉強中ですが、仕事に必要な言葉から積極的に覚えています。" },
+      { gist: { ja: "明るく協力して働ける", en: "Cheerful and cooperative", tl: "Masayahin at marunong makipagtulungan", vi: "Vui vẻ, hòa đồng, hợp tác tốt", id: "Ceria dan mudah bekerja sama" },
+        text: "明るく、人と協力して働くことが得意です。前の職場では同僚と助け合いながら仕事を進め、周囲から信頼を得てきました。新しい環境でも自分から声をかけ、早く職場に慣れるよう努力します。" }
+    ],
+    care: [
+      { gist: { ja: "高齢者との接し方・体力・夜勤可", en: "Good with elderly people; stamina; night shifts OK", tl: "Magaling sa matatanda; malakas; puwede sa night shift", vi: "Hòa hợp với người cao tuổi; thể lực tốt; làm ca đêm được", id: "Pandai bergaul dengan lansia; stamina baik; bisa shift malam" },
+        text: "高齢の方とお話しすることが好きで、相手のペースに合わせて、ゆっくり丁寧に対応できます。家族の介護の経験から、声かけ一つで安心していただけることを学びました。体力にも自信があり、夜勤にも対応できます。" }
+    ],
+    factory: [
+      { gist: { ja: "集中力と手先の器用さ・立ち仕事可", en: "Focused and dexterous; standing work OK", tl: "May konsentrasyon at magaling ang kamay; puwede sa tayuan", vi: "Tập trung, khéo tay; làm việc đứng được", id: "Fokus dan terampil; bisa bekerja berdiri" },
+        text: "集中力と手先の器用さが強みです。決められた手順を守り、正確に作業を進めることができます。体力にも自信があり、立ち仕事や夜勤にも対応できます。安全を第一に考え、確認を怠らずに作業します。" },
+      { gist: { ja: "検品が得意・正確さとスピードの両立", en: "Good at inspection; accurate and fast", tl: "Magaling sa inspeksyon; tumpak at mabilis", vi: "Giỏi kiểm tra hàng; chính xác và nhanh", id: "Pandai inspeksi; akurat dan cepat" },
+        text: "細かい違いに気づくことが得意で、検品やチェックの作業で力を発揮します。正確さを保ちながら、手早く作業を進めることを心がけています。不良や異常に気づいたときは、すぐに報告し、勝手な判断をしないよう徹底しています。" }
+    ],
+    food: [
+      { gist: { ja: "料理が得意・衛生習慣・落ち着いた対応", en: "Good cook; hygienic; calm under pressure", tl: "Magaling magluto; malinis; kalmado kahit abala", vi: "Nấu ăn giỏi; giữ vệ sinh; bình tĩnh khi bận", id: "Pandai memasak; higienis; tenang saat sibuk" },
+        text: "料理が得意で、衛生面に気を配る習慣があります。忙しい時間帯でも落ち着いて、優先順位をつけて動くことができます。お客さまに笑顔で接することを心がけ、気持ちのよい店づくりに役立ちたいです。" }
+    ],
+    clean: [
+      { gist: { ja: "細部に目が届く・手順と時間を守る", en: "Detail-oriented; follows steps and schedule", tl: "Napapansin ang detalye; sumusunod sa hakbang at oras", vi: "Chú ý chi tiết; tuân thủ quy trình và giờ giấc", id: "Teliti pada detail; mengikuti prosedur dan jadwal" },
+        text: "細かいところまで目が届き、きれいに仕上げることにやりがいを感じます。決められた手順と時間を守り、黙々と作業を進めることが得意です。道具や薬剤の扱いも、教わったルールを守って安全に作業します。" }
+    ],
+    sales: [
+      { gist: { ja: "聞き上手・笑顔・土日祝勤務可", en: "Good listener; friendly; weekends OK", tl: "Magaling makinig; palangiti; puwede sa weekend", vi: "Biết lắng nghe; thân thiện; làm cuối tuần được", id: "Pendengar yang baik; ramah; bisa bekerja di akhir pekan" },
+        text: "お客さまの話をよく聞き、要望に合った提案をすることが得意です。笑顔と丁寧な言葉づかいを心がけています。レジの操作や品出しも、早く正確に覚えることができます。土日・祝日の勤務にも対応できます。" }
+    ],
+    construction: [
+      { gist: { ja: "体力・早起き・チーム作業に慣れている", en: "Strong, early riser, used to team work", tl: "Malakas, maagang gumigising, sanay sa pangkatang trabaho", vi: "Thể lực tốt, dậy sớm, quen làm việc nhóm", id: "Stamina baik, bangun pagi, terbiasa kerja tim" },
+        text: "体力と早起きが得意で、屋外の作業にも対応できます。これまでの仕事では、仲間と声を掛け合いながらチームで作業を進めてきました。危険な作業では特に、周囲の確認と声かけを大切にし、安全第一で取り組みます。" },
+      { gist: { ja: "道具の扱いが丁寧・整理整頓ができる", en: "Handles tools carefully; keeps things tidy", tl: "Maingat sa mga kasangkapan; maayos at malinis", vi: "Cẩn thận với dụng cụ; gọn gàng, ngăn nắp", id: "Merawat alat dengan hati-hati; rapi dan teratur" },
+        text: "道具や材料を丁寧に扱い、作業後の片付けと整理整頓を欠かしません。決められた手順を守り、正確に作業を進めることが得意です。分からないことは必ず確認し、ミスや事故のないよう心がけています。" }
+    ]
+  },
+  requests: {
+    general: [
+      { gist: { ja: "すべて会社の規定に従う（一番無難）", en: "Follow company rules for everything (safest)", tl: "Susundin ang patakaran ng kumpanya sa lahat (pinakaligtas)", vi: "Theo quy định của công ty về mọi mặt (an toàn nhất)", id: "Mengikuti peraturan perusahaan untuk semuanya (paling aman)" },
+        text: "貴社の規定に従います。" },
+      { gist: { ja: "規定に従う＋長く働きたい意思", en: "Follow company rules; wants to stay long-term", tl: "Susundin ang patakaran; gustong magtagal sa trabaho", vi: "Theo quy định của công ty; muốn làm việc lâu dài", id: "Mengikuti peraturan perusahaan; ingin bekerja jangka panjang" },
+        text: "給与・勤務時間・勤務地等については、貴社の規定に従います。できるだけ長く働きたいと考えておりますので、よろしくお願いいたします。" },
+      { gist: { ja: "曜日や時間に希望がある場合", en: "If you have day/time limits", tl: "Kung may limitasyon sa araw o oras", vi: "Nếu có giới hạn về ngày / giờ làm việc", id: "Jika ada batasan hari / jam kerja" },
+        text: "家庭の事情により、（　）曜日は（　）時までの勤務を希望いたします。その他の条件については、貴社の規定に従います。" }
+    ]
+  }
+};
+const INDUSTRIES = ["general", "care", "factory", "food", "clean", "sales", "construction"];
+
+/* ================= State ================= */
+const LS_KEY = "resumeAppDataV1"; /* v2とキーを共有し、入力済みデータを引き継ぐ */
+let lang = "ja";
+let data = {
+  resumeDate: "", furigana: "", name: "", dob: "", gender: "",
+  postal: "", phone: "", email: "", addrFurigana: "", address: "",
+  contactDiff: false, cPostal: "", cPhone: "", cAddrFurigana: "", cAddress: "",
+  nationality: "", visaStatus: "", visaFree: "", jpLevel: "", langSkills: [],
+  photo: "", photoFull: "",
+  edu: [], work: [], lic: [],
+  motivation: "", selfpr: "", requests: ""
+};
+let stepIdx = 0; /* v3の現在ステップ（表示順インデックス） */
+let hasLic = null; /* 資格ゲートの回答：true=ある / false=ない / null=未回答 */
+function blankRow() { return { y: "", m: "", t: "" }; }
+function blankLang() { return { lang: "", level: "" }; }
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      data = Object.assign(data, d);
+      if (d.lang && I18N[d.lang]) lang = d.lang;
+      if (typeof d.v3step === "number") stepIdx = d.v3step;
+      if (typeof d.v3hasLic === "boolean") hasLic = d.v3hasLic;
+    }
+  } catch (e) { /* ignore */ }
+  if (!Array.isArray(data.langSkills)) data.langSkills = [];
+  if (!data.edu.length) data.edu = [blankRow(), blankRow(), blankRow()];
+  if (!data.work.length) data.work = [blankRow(), blankRow(), blankRow()];
+  if (!data.lic.length) data.lic = [blankRow(), blankRow()];
+  if (!data.langSkills.length) data.langSkills = [blankLang(), blankLang()];
+  if (data.photo && !data.photoFull) data.photoFull = data.photo;
+  if (hasLic === null && data.lic.some(r => r.y || r.m || (r.t && r.t.trim()))) hasLic = true;
+  if (!data.resumeDate) {
+    const t = new Date();
+    data.resumeDate = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+  }
+}
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(Object.assign({}, data, { lang: lang, v3step: stepIdx, v3hasLic: hasLic })));
+      const el = document.getElementById("savedMsg");
+      if (el) {
+        el.textContent = I18N[lang].saved + " ✓";
+        setTimeout(() => { el.textContent = ""; }, 2000);
+      }
+    } catch (e) {
+      const el = document.getElementById("savedMsg");
+      if (el) el.textContent = "保存できませんでした（容量オーバー）";
+    }
+  }, 300);
+}
+
+/* ================= Helpers ================= */
+function $(id) { return document.getElementById(id); }
+function t(key) { return I18N[lang][key] || key; }
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function jpDate(iso) {
+  if (!iso) return "";
+  const p = iso.split("-");
+  if (p.length !== 3) return iso;
+  return Number(p[0]) + " 年 " + Number(p[1]) + " 月 " + Number(p[2]) + " 日";
+}
+function ageAt(dobIso, atIso) {
+  if (!dobIso || !atIso) return "";
+  const d = new Date(dobIso), a = new Date(atIso);
+  if (isNaN(d) || isNaN(a)) return "";
+  let age = a.getFullYear() - d.getFullYear();
+  const mm = a.getMonth() - d.getMonth();
+  if (mm < 0 || (mm === 0 && a.getDate() < d.getDate())) age--;
+  return age;
+}
+function splitDate(iso) {
+  if (!iso) return { y: "", m: "", d: "" };
+  const p = String(iso).split("-");
+  return { y: p[0] || "", m: p[1] ? String(Number(p[1])) : "", d: p[2] ? String(Number(p[2])) : "" };
+}
+function joinDate(y, m, d) {
+  if (!y || !m || !d) return "";
+  return y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+}
+
+/* ================= Input check (v2から流用) ================= */
+function validateResume() {
+  const issues = [];
+  if (!data.name.trim()) issues.push("chkName");
+  if (!data.furigana.trim()) issues.push("chkFurigana");
+  if (!data.dob) issues.push("chkDob");
+  if (!data.address.trim()) issues.push("chkAddress");
+  const phone = (data.phone || "").trim();
+  if (!phone) {
+    issues.push("chkPhoneEmpty");
+  } else {
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (/[^0-9\-\s]/.test(phone) || !/^0\d{9,10}$/.test(digits)) issues.push("chkPhone");
+  }
+  const email = (data.email || "").trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) issues.push("chkEmail");
+  [["edu", "chkOrderEdu"], ["work", "chkOrderWork"]].forEach(([sec, key]) => {
+    let prev = null, bad = false;
+    data[sec].forEach(r => {
+      const y = parseInt(r.y, 10);
+      if (isNaN(y)) return;
+      const m = parseInt(r.m, 10);
+      const v = y * 100 + (isNaN(m) ? 0 : m);
+      if (prev !== null && v < prev) bad = true;
+      prev = v;
+    });
+    if (bad) issues.push(key);
+  });
+  return issues;
+}
+function renderCheckInto(box) {
+  const issues = validateResume();
+  box.style.display = "block";
+  if (!issues.length) {
+    box.classList.add("ok");
+    box.textContent = I18N[lang].chkOk;
+  } else {
+    box.classList.remove("ok");
+    box.innerHTML = "<strong>" + esc(I18N[lang].chkTitle) + "</strong><ul>" +
+      issues.map(k => "<li>" + esc(I18N[lang][k] || k) + "</li>").join("") + "</ul>";
+  }
+  return issues;
+}
+
+/* ================= Sheet rendering (v2から流用：日本語の履歴書様式) ================= */
+function histRows(section, headerLabel, emptyLabel) {
+  let html = headerLabel ? '<tr><td colspan="3" class="histHead">' + headerLabel + "</td></tr>" : "";
+  const rows = data[section].filter(r => r.y || r.m || (r.t && r.t.trim()));
+  if (!rows.length && emptyLabel) {
+    html += '<tr><td class="histYear"></td><td class="histMonth"></td><td>' + emptyLabel + "</td></tr>";
+  }
+  rows.forEach(r => {
+    html += '<tr><td class="histYear">' + esc(r.y) + '</td><td class="histMonth">' + esc(r.m) + "</td><td>" + esc(r.t) + "</td></tr>";
+  });
+  return html;
+}
+function renderSheet() {
+  const age = ageAt(data.dob, data.resumeDate);
+  const dobTxt = data.dob ? jpDate(data.dob) + " 生" + (age !== "" ? "（満 " + age + " 歳）" : "") : "";
+  const photoHtml = data.photo
+    ? '<img src="' + data.photo + '" alt="">'
+    : '<div class="photoEmpty">写真<br>（縦40mm×横30mm）</div>';
+  const contactAddr = data.contactDiff ? data.cAddress : "現住所に同じ";
+  const contactFuri = data.contactDiff ? data.cAddrFurigana : "";
+  const contactPostal = data.contactDiff ? data.cPostal : "";
+  const contactPhone = data.contactDiff ? data.cPhone : data.phone;
+  let html = "";
+  html += '<div class="ttl"><div class="t1">履歴書</div><div class="t2">' + esc(jpDate(data.resumeDate)) + " 現在</div></div>";
+  html += "<table>";
+  html += '<tr><td style="width:62%"><div class="lbl">ふりがな</div>' + esc(data.furigana) + '</td><td class="photoCell" rowspan="3">' + photoHtml + "</td></tr>";
+  html += '<tr><td><div class="lbl">氏 名</div><div class="nameBig">' + esc(data.name) + "</div></td></tr>";
+  html += "<tr><td>" + esc(dobTxt) + '</td></tr>';
+  html += '<tr><td colspan="2"><span class="lbl">性別（任意記載）</span>　' + esc(data.gender) + "</td></tr>";
+  html += '<tr><td colspan="2"><div class="lbl">ふりがな</div>' + esc(data.addrFurigana) +
+          '<div><span class="lbl">現住所</span>　〒' + esc(data.postal) + "　" + esc(data.address) + "</div></td></tr>";
+  html += '<tr><td colspan="2"><span class="lbl">電話</span>　' + esc(data.phone) +
+          (data.email ? '　<span class="lbl">E-mail</span>　' + esc(data.email) : "") + "</td></tr>";
+  html += '<tr><td colspan="2"><div class="lbl">ふりがな</div>' + esc(contactFuri) +
+          '<div><span class="lbl">連絡先</span>　' + (contactPostal ? "〒" + esc(contactPostal) + "　" : "") + esc(contactAddr) + "</div></td></tr>";
+  html += '<tr><td colspan="2"><span class="lbl">電話</span>　' + esc(contactPhone) + "</td></tr>";
+  html += "</table>";
+  const langTxt = data.langSkills
+    .filter(r => r.lang && r.lang.trim())
+    .map(r => esc(r.lang.trim()) + (r.level ? "（" + esc(r.level) + "）" : ""))
+    .join("、");
+  const visaTxt = esc(data.visaStatus) +
+    (data.visaFree && data.visaFree.trim() ? "（" + esc(data.visaFree.trim()) + "）" : "");
+  const fPairs = [];
+  if (data.nationality) fPairs.push(["国籍", esc(data.nationality)]);
+  if (data.visaStatus || (data.visaFree && data.visaFree.trim())) fPairs.push(["在留資格", visaTxt]);
+  if (data.jpLevel) fPairs.push(["日本語能力", esc(data.jpLevel)]);
+  if (langTxt) fPairs.push(["その他の言語", langTxt]);
+  if (fPairs.length) {
+    html += '<table class="secGap">';
+    for (let i = 0; i < fPairs.length; i += 2) {
+      html += "<tr>";
+      let inRow = 0;
+      for (let j = i; j < Math.min(i + 2, fPairs.length); j++) {
+        html += '<td style="width:15%"><span class="lbl">' + fPairs[j][0] + '</span></td><td style="width:35%">' + fPairs[j][1] + "</td>";
+        inRow++;
+      }
+      if (inRow === 1) html += '<td style="width:15%"></td><td style="width:35%"></td>';
+      html += "</tr>";
+    }
+    html += "</table>";
+  }
+  html += '<table class="histTable secGap"><tr><th class="histYear">年</th><th class="histMonth">月</th><th>学歴・職歴</th></tr>';
+  html += histRows("edu", "学　歴", "");
+  html += histRows("work", "職　歴", "な　し");
+  html += '<tr><td class="histYear"></td><td class="histMonth"></td><td style="text-align:right">以上</td></tr>';
+  html += "</table>";
+  html += '<table class="secGap"><tr><th class="histYear">年</th><th class="histMonth">月</th><th>免許・資格</th></tr>';
+  html += histRows("lic", null, "な　し");
+  html += "</table>";
+  html += '<div class="keep"><div class="freeBoxTitle">志望の動機</div><div class="freeBox">' + esc(data.motivation) + "</div></div>";
+  html += '<div class="keep"><div class="freeBoxTitle">特技・好きな学科・アピールポイント（自己PR）</div><div class="freeBox">' + esc(data.selfpr) + "</div></div>";
+  html += '<div class="keep"><div class="freeBoxTitle">本人希望記入欄（特に給料・職種・勤務時間・勤務地・その他についての希望などがあれば記入）</div><div class="freeBox">' + esc(data.requests) + "</div></div>";
+  $("sheet").innerHTML = html;
+}
+
+/* ================= Photo (v2から流用) ================= */
+function updatePhotoPrev() {
+  const p = $("photoPrev");
+  if (!p) return;
+  if (data.photo) {
+    p.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = data.photo; img.alt = "photo";
+    p.appendChild(img);
+  } else {
+    p.innerHTML = "<span>" + esc(I18N[lang].photo) + "</span>";
+  }
+  const adjBtn = $("btnPhotoAdjust");
+  if (adjBtn) adjBtn.style.display = data.photo ? "inline-block" : "none";
+  if (!data.photo && $("photoAdjust")) $("photoAdjust").style.display = "none";
+}
+function onPhoto(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 480;
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, w, h);
+        try { data.photo = cv.toDataURL("image/jpeg", 0.85); } catch (e) { data.photo = reader.result; }
+      } else {
+        data.photo = reader.result;
+      }
+      data.photoFull = data.photo;
+      if ($("photoAdjust")) $("photoAdjust").style.display = "none";
+      updatePhotoPrev(); save(); renderSheet();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+const ADJ_W = 180, ADJ_H = 240;
+let adj = null;
+function adjDisp() {
+  const s = Math.max(ADJ_W / adj.natW, ADJ_H / adj.natH) * adj.z;
+  return { w: adj.natW * s, h: adj.natH * s, s: s };
+}
+function adjClamp() {
+  const d = adjDisp();
+  adj.ox = d.w <= ADJ_W ? (ADJ_W - d.w) / 2 : Math.min(0, Math.max(ADJ_W - d.w, adj.ox));
+  adj.oy = d.h <= ADJ_H ? (ADJ_H - d.h) / 2 : Math.min(0, Math.max(ADJ_H - d.h, adj.oy));
+}
+function adjApply() {
+  if (!adj) return;
+  const d = adjDisp();
+  const im = $("adjImg");
+  if (!im) return;
+  im.style.width = d.w + "px"; im.style.height = d.h + "px";
+  im.style.left = adj.ox + "px"; im.style.top = adj.oy + "px";
+}
+function setupAdjust(natW, natH, srcImg) {
+  adj = { img: srcImg || null, natW: natW, natH: natH, z: 1, ox: 0, oy: 0 };
+  const d = adjDisp();
+  adj.ox = (ADJ_W - d.w) / 2; adj.oy = (ADJ_H - d.h) / 2;
+  if ($("adjZoom")) $("adjZoom").value = 100;
+  adjApply();
+}
+function openAdjust() {
+  const src = data.photoFull || data.photo;
+  if (!src) return;
+  const img = new Image();
+  img.onload = () => {
+    $("adjImg").src = src;
+    setupAdjust(img.width, img.height, img);
+    $("photoAdjust").style.display = "block";
+    bindAdjDrag();
+  };
+  img.src = src;
+}
+function computeCropRect() {
+  const d = adjDisp();
+  return { sx: -adj.ox / d.s, sy: -adj.oy / d.s, sw: ADJ_W / d.s, sh: ADJ_H / d.s };
+}
+function bakePhoto() {
+  if (!adj || !adj.img) return;
+  const r = computeCropRect();
+  const cv = document.createElement("canvas");
+  cv.width = 360; cv.height = 480;
+  const ctx = cv.getContext("2d");
+  if (ctx) {
+    ctx.drawImage(adj.img, r.sx, r.sy, r.sw, r.sh, 0, 0, 360, 480);
+    try { data.photo = cv.toDataURL("image/jpeg", 0.85); } catch (e) { /* keep current photo */ }
+  }
+  $("photoAdjust").style.display = "none";
+  updatePhotoPrev(); save(); renderSheet();
+}
+function resetPhoto() {
+  if (data.photoFull) data.photo = data.photoFull;
+  if ($("photoAdjust")) $("photoAdjust").style.display = "none";
+  adj = null;
+  updatePhotoPrev(); save(); renderSheet();
+}
+function onAdjZoom() {
+  if (!adj) return;
+  const old = adjDisp();
+  const cx = adj.ox + old.w / 2, cy = adj.oy + old.h / 2;
+  adj.z = Number($("adjZoom").value) / 100;
+  const d = adjDisp();
+  adj.ox = cx - d.w / 2; adj.oy = cy - d.h / 2;
+  adjClamp(); adjApply();
+}
+function bindAdjDrag() {
+  const frame = $("adjFrame");
+  if (!frame || frame.dataset.bound) return;
+  frame.dataset.bound = "1";
+  let drag = null;
+  frame.addEventListener("pointerdown", e => {
+    if (!adj) return;
+    drag = { x: e.clientX, y: e.clientY, ox: adj.ox, oy: adj.oy };
+    if (frame.setPointerCapture) { try { frame.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+    e.preventDefault();
+  });
+  frame.addEventListener("pointermove", e => {
+    if (!drag || !adj) return;
+    adj.ox = drag.ox + (e.clientX - drag.x);
+    adj.oy = drag.oy + (e.clientY - drag.y);
+    adjClamp(); adjApply();
+  });
+  ["pointerup", "pointercancel"].forEach(evName => {
+    frame.addEventListener(evName, () => { drag = null; });
+  });
+}
+
+/* ================= Wizard: UI builders ================= */
+function makeChoices(items, currentValue, onPick, twoCol) {
+  const wrap = document.createElement("div");
+  wrap.className = "choices" + (twoCol ? " row2" : "");
+  items.forEach(it => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "choice" + (String(it.value) === String(currentValue) ? " selected" : "");
+    const mark = document.createElement("span");
+    mark.className = "mark"; mark.textContent = "✓";
+    const label = document.createElement("span");
+    label.textContent = it.label;
+    b.appendChild(mark); b.appendChild(label);
+    b.addEventListener("click", () => {
+      wrap.querySelectorAll(".choice").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected");
+      onPick(it.value);
+    });
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+function autoAdvance() {
+  setTimeout(() => { goNext(true); }, 300);
+}
+function makeTextInput(container, opts) {
+  if (opts.labelKey) {
+    const lb = document.createElement("label");
+    lb.className = "flabel"; lb.textContent = t(opts.labelKey);
+    container.appendChild(lb);
+  }
+  const inp = document.createElement("input");
+  inp.type = opts.type || "text";
+  if (opts.inputmode) inp.inputMode = opts.inputmode;
+  if (opts.phKey) inp.placeholder = t(opts.phKey);
+  if (opts.ph) inp.placeholder = opts.ph;
+  inp.value = data[opts.field] || "";
+  inp.addEventListener("input", () => { data[opts.field] = inp.value; save(); });
+  container.appendChild(inp);
+  return inp;
+}
+function makeDateSelects(container, getISO, setISO, yMin, yMax) {
+  const cur = splitDate(getISO());
+  const row = document.createElement("div");
+  row.className = "dateRow";
+  function one(unitKey, values, val) {
+    const cell = document.createElement("div");
+    const u = document.createElement("span");
+    u.className = "unit"; u.textContent = t(unitKey);
+    const sel = document.createElement("select");
+    const o0 = document.createElement("option");
+    o0.value = ""; o0.textContent = "―";
+    sel.appendChild(o0);
+    values.forEach(v => {
+      const o = document.createElement("option");
+      o.value = String(v); o.textContent = String(v);
+      sel.appendChild(o);
+    });
+    sel.value = val || "";
+    cell.appendChild(u); cell.appendChild(sel);
+    row.appendChild(cell);
+    return sel;
+  }
+  const years = [];
+  for (let y = yMax; y >= yMin; y--) years.push(y);
+  const months = []; for (let m = 1; m <= 12; m++) months.push(m);
+  const days = []; for (let d = 1; d <= 31; d++) days.push(d);
+  const sy = one("yearL", years, cur.y);
+  const sm = one("monthL", months, cur.m);
+  const sd = one("dayL", days, cur.d);
+  function upd() { setISO(joinDate(sy.value, sm.value, sd.value)); save(); }
+  [sy, sm, sd].forEach(s => s.addEventListener("change", upd));
+  container.appendChild(row);
+}
+/* 都道府県セレクト＋残り住所の入力（data[field] に結合して保存） */
+function buildPrefixedAddress(container, field) {
+  const lb = document.createElement("label");
+  lb.className = "flabel"; lb.textContent = t("prefL");
+  container.appendChild(lb);
+  const sel = document.createElement("select");
+  const o0 = document.createElement("option");
+  o0.value = ""; o0.textContent = t("selectNone");
+  sel.appendChild(o0);
+  PREFECTURES.forEach(p => {
+    const o = document.createElement("option");
+    o.value = p; o.textContent = p;
+    sel.appendChild(o);
+  });
+  container.appendChild(sel);
+  const lb2 = document.createElement("label");
+  lb2.className = "flabel"; lb2.textContent = t("address");
+  container.appendChild(lb2);
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.placeholder = t("addressRestPh");
+  container.appendChild(inp);
+  function syncFromData() {
+    const full = data[field] || "";
+    const pref = PREFECTURES.find(p => full.indexOf(p) === 0) || "";
+    sel.value = pref;
+    inp.value = pref ? full.slice(pref.length) : full;
+  }
+  function upd() { data[field] = (sel.value || "") + inp.value; save(); }
+  sel.addEventListener("change", upd);
+  inp.addEventListener("input", upd);
+  syncFromData();
+}
+/* 年・月セレクト付きの履歴行（学歴・職歴・資格） */
+function buildHistRows(container, section, phKey, quickWords) {
+  const host = document.createElement("div");
+  container.appendChild(host);
+  const addBtn = document.createElement("button");
+  addBtn.type = "button"; addBtn.className = "addbtn"; addBtn.textContent = t("addRow");
+  addBtn.addEventListener("click", () => { data[section].push(blankRow()); save(); draw(); });
+  container.appendChild(addBtn);
+  const curYear = new Date().getFullYear();
+  function draw() {
+    host.innerHTML = "";
+    data[section].forEach(row => {
+      const div = document.createElement("div");
+      div.className = "dynrow";
+      const sy = document.createElement("select");
+      sy.className = "y";
+      const oy0 = document.createElement("option");
+      oy0.value = ""; oy0.textContent = t("yearL");
+      sy.appendChild(oy0);
+      for (let y = curYear + 1; y >= 1950; y--) {
+        const o = document.createElement("option");
+        o.value = String(y); o.textContent = String(y);
+        sy.appendChild(o);
+      }
+      sy.value = row.y || "";
+      const sm = document.createElement("select");
+      sm.className = "m";
+      const om0 = document.createElement("option");
+      om0.value = ""; om0.textContent = t("monthL");
+      sm.appendChild(om0);
+      for (let m = 1; m <= 12; m++) {
+        const o = document.createElement("option");
+        o.value = String(m); o.textContent = String(m);
+        sm.appendChild(o);
+      }
+      sm.value = row.m || "";
+      const tx = document.createElement("input");
+      tx.type = "text"; tx.className = "t"; tx.value = row.t; tx.placeholder = t(phKey);
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "del"; del.textContent = "×";
+      sy.addEventListener("change", () => { row.y = sy.value; save(); });
+      sm.addEventListener("change", () => { row.m = sm.value; save(); });
+      tx.addEventListener("input", () => { row.t = tx.value; save(); });
+      del.addEventListener("click", () => {
+        const arr = data[section];
+        const i = arr.indexOf(row);
+        if (i >= 0) arr.splice(i, 1);
+        if (!arr.length) arr.push(blankRow());
+        save(); draw();
+      });
+      div.appendChild(sy); div.appendChild(sm); div.appendChild(tx); div.appendChild(del);
+      host.appendChild(div);
+      if (quickWords && quickWords.length) {
+        const qc = document.createElement("div");
+        qc.className = "quickchips";
+        quickWords.forEach(w => {
+          const b = document.createElement("button");
+          b.type = "button"; b.textContent = "＋ " + w;
+          b.addEventListener("click", () => {
+            const cur = (tx.value || "").replace(/\s+$/, "");
+            tx.value = cur ? cur + " " + w : w;
+            row.t = tx.value; save();
+          });
+          qc.appendChild(b);
+        });
+        host.appendChild(qc);
+      }
+    });
+  }
+  draw();
+}
+/* その他の言語スキル行 */
+function buildLangRowsStep(container) {
+  const host = document.createElement("div");
+  container.appendChild(host);
+  const addBtn = document.createElement("button");
+  addBtn.type = "button"; addBtn.className = "addbtn"; addBtn.textContent = t("addRow");
+  addBtn.addEventListener("click", () => { data.langSkills.push(blankLang()); save(); draw(); });
+  container.appendChild(addBtn);
+  function draw() {
+    host.innerHTML = "";
+    data.langSkills.forEach(row => {
+      const div = document.createElement("div");
+      div.className = "dynrow";
+      const tx = document.createElement("input");
+      tx.type = "text"; tx.className = "t"; tx.value = row.lang; tx.placeholder = t("langNamePh");
+      const sel = document.createElement("select");
+      sel.className = "lv";
+      const o0 = document.createElement("option");
+      o0.value = ""; o0.textContent = t("selectNone");
+      sel.appendChild(o0);
+      LV_OPTIONS.forEach(op => {
+        const o = document.createElement("option");
+        o.value = op.v; o.textContent = I18N[lang][op.k] || op.v;
+        sel.appendChild(o);
+      });
+      sel.value = row.level || "";
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "del"; del.textContent = "×";
+      tx.addEventListener("input", () => { row.lang = tx.value; save(); });
+      sel.addEventListener("change", () => { row.level = sel.value; save(); });
+      del.addEventListener("click", () => {
+        const arr = data.langSkills;
+        const i = arr.indexOf(row);
+        if (i >= 0) arr.splice(i, 1);
+        if (!arr.length) arr.push(blankLang());
+        save(); draw();
+      });
+      div.appendChild(tx); div.appendChild(sel); div.appendChild(del);
+      host.appendChild(div);
+    });
+  }
+  draw();
+}
+/* 例文つきテキストエリア（志望動機・自己PR・本人希望） */
+function buildTplStep(container, kind, field) {
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  const list = document.createElement("div");
+  const note = document.createElement("p");
+  note.className = "note"; note.textContent = t("templateNote");
+  const ta = document.createElement("textarea");
+  ta.placeholder = t(field === "motivation" ? "motivationPh" : field === "selfpr" ? "selfprPh" : "requestsPh");
+  ta.value = data[field] || "";
+  ta.addEventListener("input", () => { data[field] = ta.value; save(); });
+  function showTpls(ind) {
+    list.innerHTML = "";
+    (TEMPLATES[kind][ind] || []).forEach(tpl => {
+      const d = document.createElement("div");
+      d.className = "tpl";
+      const g = document.createElement("div");
+      g.className = "gist"; g.textContent = tpl.gist[lang] || tpl.gist.ja;
+      const b = document.createElement("div");
+      b.className = "body"; b.textContent = tpl.text;
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "btn"; btn.textContent = t("useTemplate");
+      btn.addEventListener("click", () => {
+        ta.value = ta.value.trim() ? ta.value.replace(/\s+$/, "") + "\n" + tpl.text : tpl.text;
+        data[field] = ta.value; save(); ta.focus();
+      });
+      d.appendChild(g); d.appendChild(b); d.appendChild(btn);
+      list.appendChild(d);
+    });
+  }
+  INDUSTRIES.forEach(ind => {
+    if (!TEMPLATES[kind][ind]) return;
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = t("ind_" + ind);
+    b.addEventListener("click", () => {
+      chips.querySelectorAll("button").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      showTpls(ind);
+    });
+    chips.appendChild(b);
+  });
+  container.appendChild(chips);
+  container.appendChild(list);
+  container.appendChild(note);
+  container.appendChild(ta);
+  if (kind === "requests") chips.style.display = "none";
+  const first = chips.querySelector("button");
+  if (first) first.click();
+}
+
+/* ================= Steps ================= */
+const STEPS = [
+  { id: "resumeDate", render(c) {
+      const nowY = new Date().getFullYear();
+      makeDateSelects(c, () => data.resumeDate, v => { data.resumeDate = v; }, nowY - 1, nowY + 1);
+    } },
+  { id: "name", render(c) { makeTextInput(c, { field: "name", phKey: "namePh" }); },
+    validate() { return data.name.trim() ? [] : ["chkName"]; } },
+  { id: "furigana", hintKey: "furiganaHint", render(c) { makeTextInput(c, { field: "furigana", phKey: "furiganaPh" }); },
+    validate() { return data.furigana.trim() ? [] : ["chkFurigana"]; } },
+  { id: "dob", render(c) {
+      const nowY = new Date().getFullYear();
+      makeDateSelects(c, () => data.dob, v => { data.dob = v; }, nowY - 80, nowY - 14);
+    },
+    validate() { return data.dob ? [] : ["chkDob"]; } },
+  { id: "gender", hintKey: "tapToChoose", skippable: true, render(c) {
+      c.appendChild(makeChoices([
+        { value: "男", label: t("male") },
+        { value: "女", label: t("female") },
+        { value: "", label: t("genderNone") }
+      ], data.gender, v => { data.gender = v; save(); autoAdvance(); }, true));
+    } },
+  { id: "photo", hintKey: "photoHint", skippable: true, render(c) {
+      c.innerHTML =
+        '<div class="photoBox">' +
+          '<div class="photoPrev" id="photoPrev"></div>' +
+          '<div><label class="btn sub" for="f_photo">' + esc(t("photoAdd")) + '</label>' +
+          '<input type="file" id="f_photo" accept="image/*" style="display:none">' +
+          '<div style="height:8px"></div>' +
+          '<button type="button" class="btn sub" id="btnPhotoAdjust" style="display:none">' + esc(t("photoAdjust")) + '</button></div>' +
+        '</div>' +
+        '<div id="photoAdjust" style="display:none;margin-top:12px">' +
+          '<div id="adjFrame"><img id="adjImg" alt=""></div>' +
+          '<div class="adjCtl"><span>' + esc(t("zoom")) + '</span><input type="range" id="adjZoom" min="100" max="300" step="1" value="100"></div>' +
+          '<p class="note">' + esc(t("photoAdjustHint")) + '</p>' +
+          '<div class="adjBtns">' +
+            '<button type="button" class="btn" id="adjDone">' + esc(t("photoDone")) + '</button>' +
+            '<button type="button" class="btn sub" id="adjReset">' + esc(t("photoReset")) + '</button>' +
+          '</div>' +
+        '</div>';
+      $("f_photo").addEventListener("change", onPhoto);
+      $("btnPhotoAdjust").addEventListener("click", openAdjust);
+      $("adjDone").addEventListener("click", bakePhoto);
+      $("adjReset").addEventListener("click", resetPhoto);
+      $("adjZoom").addEventListener("input", onAdjZoom);
+      updatePhotoPrev();
+    } },
+  { id: "postal", render(c) { makeTextInput(c, { field: "postal", inputmode: "numeric", ph: "000-0000" }); } },
+  { id: "address", render(c) { buildPrefixedAddress(c, "address"); },
+    validate() { return data.address.trim() ? [] : ["chkAddress"]; } },
+  { id: "addrFurigana", skippable: true, render(c) { makeTextInput(c, { field: "addrFurigana", phKey: "addrFuriganaPh" }); } },
+  { id: "phone", render(c) { makeTextInput(c, { field: "phone", type: "tel", ph: "090-0000-0000" }); },
+    validate() {
+      const phone = (data.phone || "").trim();
+      if (!phone) return ["chkPhoneEmpty"];
+      const digits = phone.replace(/[^0-9]/g, "");
+      if (/[^0-9\-\s]/.test(phone) || !/^0\d{9,10}$/.test(digits)) return ["chkPhone"];
+      return [];
+    } },
+  { id: "email", skippable: true, render(c) { makeTextInput(c, { field: "email", type: "email", ph: "example@mail.com" }); },
+    validate() {
+      const email = (data.email || "").trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return ["chkEmail"];
+      return [];
+    } },
+  { id: "contactDiff", hintKey: "tapToChoose", render(c) {
+      c.appendChild(makeChoices([
+        { value: "same", label: t("sameAsAddress") },
+        { value: "diff", label: t("differentAddress") }
+      ], data.contactDiff ? "diff" : "same", v => { data.contactDiff = (v === "diff"); save(); autoAdvance(); }));
+    } },
+  { id: "contactBlock", showIf: () => data.contactDiff, render(c) {
+      makeTextInput(c, { field: "cPostal", labelKey: "postal", inputmode: "numeric", ph: "000-0000" });
+      buildPrefixedAddress(c, "cAddress");
+      makeTextInput(c, { field: "cAddrFurigana", labelKey: "addressFurigana", phKey: "addrFuriganaPh" });
+      makeTextInput(c, { field: "cPhone", labelKey: "phone", type: "tel", ph: "090-0000-0000" });
+    } },
+  { id: "nationality", skippable: true, render(c) {
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      const otherInp = document.createElement("input");
+      otherInp.type = "text";
+      otherInp.placeholder = t("nationalityFreePh");
+      otherInp.style.display = "none";
+      otherInp.style.marginTop = "10px";
+      let otherMode = !!(data.nationality && NATIONALITIES.indexOf(data.nationality) < 0);
+      function refresh() {
+        chips.querySelectorAll("button").forEach(b => {
+          b.classList.toggle("active", b.dataset.val === data.nationality ||
+            (b.dataset.val === "__other" && otherMode));
+        });
+        otherInp.style.display = otherMode ? "block" : "none";
+        if (otherMode && document.activeElement !== otherInp) otherInp.value = data.nationality || "";
+      }
+      NATIONALITIES.forEach(n => {
+        const b = document.createElement("button");
+        b.type = "button"; b.dataset.val = n; b.textContent = n;
+        b.addEventListener("click", () => { otherMode = false; data.nationality = n; save(); refresh(); });
+        chips.appendChild(b);
+      });
+      const ob = document.createElement("button");
+      ob.type = "button"; ob.dataset.val = "__other"; ob.textContent = t("otherLabel");
+      ob.addEventListener("click", () => { otherMode = true; data.nationality = otherInp.value; save(); refresh(); otherInp.focus(); });
+      chips.appendChild(ob);
+      otherInp.addEventListener("input", () => { data.nationality = otherInp.value; save(); refresh(); });
+      c.appendChild(chips);
+      c.appendChild(otherInp);
+      refresh();
+    } },
+  { id: "visaStatus", hintKey: "tapToChoose", skippable: true, render(c) {
+      c.appendChild(makeChoices(
+        VISA_OPTIONS.map(op => ({ value: op.v, label: I18N[lang][op.k] || op.v })),
+        data.visaStatus, v => { data.visaStatus = v; save(); autoAdvance(); }));
+    } },
+  { id: "visaFree", skippable: true, render(c) { makeTextInput(c, { field: "visaFree", phKey: "visaFreePh" }); } },
+  { id: "jpLevel", hintKey: "tapToChoose", skippable: true, render(c) {
+      c.appendChild(makeChoices(
+        JP_OPTIONS.map(op => ({ value: op.v, label: I18N[lang][op.k] || op.v })),
+        data.jpLevel, v => { data.jpLevel = v; save(); autoAdvance(); }));
+    } },
+  { id: "langSkills", skippable: true, render(c) { buildLangRowsStep(c); } },
+  { id: "edu", hintKey: "eduHint", render(c) { buildHistRows(c, "edu", "eduTextPh", ["入学", "卒業", "中退", "修了"]); } },
+  { id: "work", hintKey: "workHint", render(c) { buildHistRows(c, "work", "workTextPh", ["入社", "退職", "現在に至る"]); } },
+  { id: "licGate", hintKey: "tapToChoose", render(c) {
+      c.appendChild(makeChoices([
+        { value: "yes", label: t("yesHas") },
+        { value: "no", label: t("noNone") }
+      ], hasLic === null ? "" : (hasLic ? "yes" : "no"), v => { hasLic = (v === "yes"); save(); autoAdvance(); }, true));
+    } },
+  { id: "lic", showIf: () => hasLic === true, render(c) { buildHistRows(c, "lic", "licTextPh", ["取得"]); } },
+  { id: "motivation", render(c) { buildTplStep(c, "motivation", "motivation"); } },
+  { id: "selfpr", render(c) { buildTplStep(c, "selfpr", "selfpr"); } },
+  { id: "requests", skippable: true, render(c) { buildTplStep(c, "requests", "requests"); } }
+];
+
+/* ================= Navigation ================= */
+function activeSteps() { return STEPS.filter(s => !s.showIf || s.showIf()); }
+function currentStep() {
+  const a = activeSteps();
+  return stepIdx < a.length ? a[stepIdx] : null;
+}
+function updateProgress() {
+  const a = activeSteps();
+  const done = stepIdx >= a.length;
+  const pct = done ? 100 : Math.round((stepIdx / a.length) * 100);
+  $("progressLabel").textContent = done
+    ? t("doneTitle")
+    : t("questionOf").replace("{n}", stepIdx + 1).replace("{t}", a.length);
+  $("progressPct").textContent = pct + "%";
+  $("progressFill").style.width = pct + "%";
+}
+function showWarn(keys) {
+  const w = $("qWarn");
+  if (!keys || !keys.length) { w.style.display = "none"; w.innerHTML = ""; return; }
+  w.innerHTML = "<strong>" + esc(t("chkTitle")) + "</strong><ul style='margin:4px 0 0;padding-left:20px'>" +
+    keys.map(k => "<li>" + esc(t(k)) + "</li>").join("") + "</ul>";
+  w.style.display = "block";
+}
+function renderStep() {
+  const a = activeSteps();
+  if (stepIdx > a.length) stepIdx = a.length;
+  if (stepIdx < 0) stepIdx = 0;
+  showWarn(null);
+  updateProgress();
+  const step = currentStep();
+  const body = $("qBody");
+  body.innerHTML = "";
+  if (!step) { renderDone(body); return; }
+  $("navRow").style.display = "flex";
+  $("btnPreviewMid").parentElement.style.display = "block";
+  $("qTitle").textContent = QUESTIONS[step.id][lang] || QUESTIONS[step.id].ja;
+  const hint = $("qHint");
+  if (step.hintKey) { hint.textContent = t(step.hintKey); hint.style.display = "block"; }
+  else hint.style.display = "none";
+  step.render(body);
+  $("btnBackQ").style.visibility = stepIdx === 0 ? "hidden" : "visible";
+  $("nextLabel").textContent = (stepIdx === a.length - 1) ? t("finish") : t("next");
+  $("skipRow").style.display = step.skippable ? "block" : "none";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function renderDone(body) {
+  $("navRow").style.display = "none";
+  $("skipRow").style.display = "none";
+  $("btnPreviewMid").parentElement.style.display = "none";
+  $("qTitle").textContent = t("doneTitle");
+  const hint = $("qHint");
+  hint.textContent = t("doneMsg"); hint.style.display = "block";
+  const chk = document.createElement("div");
+  chk.id = "checkResult";
+  body.appendChild(chk);
+  renderCheckInto(chk);
+  const btns = document.createElement("div");
+  btns.className = "doneBtns";
+  const bPrev = document.createElement("button");
+  bPrev.type = "button"; bPrev.className = "btn"; bPrev.textContent = t("preview");
+  bPrev.addEventListener("click", openPreview);
+  const bPrint = document.createElement("button");
+  bPrint.type = "button"; bPrint.className = "btn"; bPrint.textContent = t("print");
+  bPrint.addEventListener("click", () => { openPreview(); setTimeout(() => window.print(), 400); });
+  const bReview = document.createElement("button");
+  bReview.type = "button"; bReview.className = "btn sub"; bReview.textContent = t("reviewFromStart");
+  bReview.addEventListener("click", () => { stepIdx = 0; save(); renderStep(); });
+  const bBack = document.createElement("button");
+  bBack.type = "button"; bBack.className = "btn sub"; bBack.textContent = "← " + t("back");
+  bBack.addEventListener("click", () => { stepIdx = activeSteps().length - 1; save(); renderStep(); });
+  const bClear = document.createElement("button");
+  bClear.type = "button"; bClear.className = "btn danger"; bClear.textContent = t("clear");
+  bClear.addEventListener("click", () => {
+    if (!confirm(t("clearConfirm"))) return;
+    localStorage.removeItem(LS_KEY);
+    location.reload();
+  });
+  btns.appendChild(bPrev); btns.appendChild(bPrint); btns.appendChild(bReview); btns.appendChild(bBack); btns.appendChild(bClear);
+  body.appendChild(btns);
+  const ph = document.createElement("p");
+  ph.className = "note"; ph.textContent = t("printHint");
+  body.appendChild(ph);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function goNext(fromChoice) {
+  const step = currentStep();
+  if (!step) return;
+  if (!fromChoice && step.validate) {
+    const issues = step.validate();
+    if (issues.length) { showWarn(issues); return; }
+  }
+  stepIdx++;
+  save();
+  renderStep();
+}
+function goBack() {
+  if (stepIdx > 0) { stepIdx--; save(); renderStep(); }
+}
+function goSkip() {
+  if (!currentStep()) return;
+  stepIdx++;
+  save();
+  renderStep();
+}
+
+/* ================= Preview ================= */
+function fitSheet() {
+  const wrap = $("sheetWrap"), scaler = $("sheetScaler"), sheet = $("sheet");
+  scaler.style.transform = "";
+  const w = sheet.offsetWidth;
+  if (!w) return;
+  const avail = Math.min(window.innerWidth - 12, 920);
+  const scale = Math.min(1, avail / w);
+  scaler.style.transform = "scale(" + scale + ")";
+  wrap.style.width = (w * scale) + "px";
+  wrap.style.height = (sheet.offsetHeight * scale) + "px";
+}
+function openPreview() {
+  renderSheet();
+  $("previewOverlay").classList.add("show");
+  document.body.style.overflow = "hidden";
+  requestAnimationFrame(fitSheet);
+  setTimeout(fitSheet, 120);
+}
+function closePreview() {
+  $("previewOverlay").classList.remove("show");
+  document.body.style.overflow = "";
+}
+window.addEventListener("resize", () => {
+  if ($("previewOverlay").classList.contains("show")) fitSheet();
+});
+
+/* ================= Language ================= */
+function applyStaticLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    if (I18N[lang][k]) el.textContent = I18N[lang][k];
+  });
+  document.querySelectorAll(".langbar button").forEach(b => {
+    b.classList.toggle("active", b.getAttribute("data-lang") === lang);
+  });
+}
+function setLang(l) {
+  if (!I18N[l]) return;
+  lang = l;
+  applyStaticLang();
+  renderStep();
+  save();
+}
+
+/* ================= Init ================= */
+load();
+applyStaticLang();
+document.querySelectorAll(".langbar button").forEach(b => {
+  b.addEventListener("click", () => setLang(b.getAttribute("data-lang")));
+});
+$("btnNextQ").addEventListener("click", () => goNext(false));
+$("btnBackQ").addEventListener("click", goBack);
+$("btnSkipQ").addEventListener("click", goSkip);
+$("btnPreviewMid").addEventListener("click", openPreview);
+$("btnBackToQ").addEventListener("click", closePreview);
+$("btnPrintOv").addEventListener("click", () => window.print());
+if (stepIdx < 0) stepIdx = 0;
+renderStep();
+renderSheet();
+</script>
+</body>
+</html>
